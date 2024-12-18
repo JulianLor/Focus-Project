@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 from mayavi import mlab
 from config import canc_hor_distance, canc_vert_distance, canc_magnet_dimensions, canc_magnet_moment, canc_cube_size, \
-    mu_0, Grid_density, Grid_size, output_folder, N_turns
+    mu_0, Grid_density, Grid_size, output_folder
 
 
 def cancellation_field():
@@ -30,6 +30,8 @@ def cancellation_field():
 
     canc_cube_volume = canc_cube_size ** 3
     canc_magnet_moment_new = canc_magnet_moment * canc_cube_volume
+
+    calculate_force(canc_magnet_centers, canc_magnet_moment, canc_magnet_dimensions)
 
     x, y, z = setup_plot(Grid_density, Grid_size)
     print(z.shape)
@@ -160,7 +162,7 @@ def superpositioning_of_Vector_fields(B_fields):
 
 # Plot and save each frame
 def plot_magnetic_field(x, y, z, Bx, By, Bz, output_folder):
-    step = 200
+    step = 5000
     B_magnitude = np.sqrt(Bx ** 2 + By ** 2 + Bz ** 2)
     mlab.figure(size=(1920, 1080), bgcolor=(1, 1, 1))  # Create a white background figure
     quiver = mlab.quiver3d(x, y, z, Bx, By, Bz, scalars=B_magnitude, scale_factor=20, colormap='jet')
@@ -219,61 +221,47 @@ def setup_plot(Grid_density, Grid_size):
         x, y, z = np.mgrid[-Grid_size[0]:Grid_size[0] + a:Grid_density , -Grid_size[1]:Grid_size[1] + a:Grid_density, -Grid_size[2]:Grid_size[2] + a:Grid_density]
     return x, y, z
 
-def coil_cancellation_setup(N_turns_out, I_out):
-    r_in = 0.01
-    r_out = 0.02
-    L = 0.015
-    I_max = 5
-    N_turns_max = 500
-    total_points_max_in = int((2 * np.pi * r_in / 0.001) * N_turns)
-    total_points_max_out = int((2 * np.pi * r_out / 0.001) * N_turns * N_turns_out)
-    dl_in = (2 * np.pi * r_in ) / (total_points_max_in / N_turns)
-    dl_out = (2 * np.pi * r_out ) / (total_points_max_out / (N_turns * N_turns_out))
+def calculate_force(canc_magnet_centers, canc_magnet_moment, dim):
+    # defining the constants for force calculation
+    volume = volume_of_magnet(dim)
+    magnetisation = magnetisation_of_magnet(volume, canc_magnet_moment)
 
-    solenoid_in, current_in = create_solenoid_current(L, N_turns, r_in, 1, 1, total_points_max_in)
-    solenoid_out, current_out = create_solenoid_current(L, N_turns, r_out, N_turns_out, I_out, total_points_max_out)
+    for i in range(len(canc_magnet_centers)):
+        force = np.zeros(3, dtype=float)
+        for j in range(len(canc_magnet_centers)):
+            if i != j:
+                r = canc_magnet_centers[i] - canc_magnet_centers[j]
+                B_grad = magnetic_dipole_gradient(magnetisation, r)
+                force += force_on_dipole(magnetisation, B_grad)
+        print("Force on Permament Magnet: ", round(np.linalg.norm(force), 2), "N")
+        print("Fx, Fy, Fz: ", round(float(force[0]), 2), ",", round(float(force[1]), 2), ",", round(float(force[2]), 2))
 
-    points = define_points()
-    calc_B_field_points(solenoid_in, current_in, points, total_points_max_in, dl_in)
-    calc_B_field_points(solenoid_out, current_out, points, total_points_max_out, dl_out)
+def magnetic_dipole_gradient(m, r):
+    # Compute r magnitude and unit vector
+    r_mag = np.linalg.norm(r)
+    r_hat = r / r_mag
 
-def calc_B_field_points(solenoid, current, points, total_points, dl):
-    B = np.zeros((21, 3))
-    for i in range(21):
-        for j in range(total_points):
-            r = np.array(solenoid[j]) - np.array(points[i])
-            B[i] += Biot_Savart_Law(mu_0, current, r, dl)
+    # Outer product of r_hat with itself
+    r_hat_outer = np.outer(r_hat, r_hat)
 
+    # Compute gradient tensor components
+    term1 = 5 * np.dot(m, r_hat) * r_hat_outer
+    term2 = -np.dot(m, r_hat) * np.eye(3)
+    term3 = -np.outer(m, r_hat)
+    term4 = -np.outer(r_hat, m)
 
+    # Combine terms and include prefactor
+    prefactor = (3 / r_mag**5) * mu_0
+    B_grad = prefactor * (term1 + term2 + term3 + term4)
+    return B_grad
 
-# take 3d current and radius and return 3d B-field
-def Biot_Savart_Law(mu_0, current, r, dl):
-    r_mag = np.linalg.norm(r)  # Magnitude of r vector
-    if r_mag == 0:
-        return np.array([0, 0, 0])  # To avoid division by zero
-    return dl * mu_0 * np.cross(current, r) / ((r_mag ** 3) * 4 * np.pi)
+def volume_of_magnet(dim):
+    return dim[0] * dim[1] * dim[2]
 
-def define_points():
-    a = np.zeros(5)
-    b = np.arange(21)
-    points = np.column_stack((a, a, b))
-    return points
+def magnetisation_of_magnet(volume, m):
+    return m * volume
 
-def create_solenoid_current(L, N_turns, r, factor_turns, factor_I, total_points_max):
-    # Parametric equation for the inner solenoid
-    z = np.linspace(-L, 0, total_points_max * factor_turns)  # Solenoid length centered at the origin
-    theta = np.linspace(0, 2 * np.pi * N_turns, total_points_max * factor_turns)  # Angular positions
-
-    # Helix coordinates in cylindrical form
-    x_helix = r * np.cos(theta)  # x-coordinates (circle)
-    y_helix = r * np.sin(theta)  # y-coordinates (circle)
-
-    # Solenoid Base: Along the Z-axis (standard solenoid)
-    solenoid = np.column_stack((x_helix, y_helix, z))
-
-    dx_helix = -np.sin(theta)  # x-coordinates (circle)
-    dy_helix = np.cos(theta)  # y-coordinates (circle)
-
-    current = np.column_stack((dx_helix * factor_I, dy_helix * factor_I, [0] * total_points_max))
-
-    return solenoid, current
+def force_on_dipole(m, B_grad):
+    #Calculate force based on Gradient of B and the magnetisation vector of the magnet
+    force = np.dot(m, B_grad)
+    return force
