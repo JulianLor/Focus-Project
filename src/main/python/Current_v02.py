@@ -1,20 +1,33 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from Coil_paramters import thickness_of_solenoid
 
 def calculate_current_flex(N_turns, L, points_per_turn, model_choice, angle, angle_adj, angle_opp):
-    # Calculate total points to plot
-    total_points = N_turns * points_per_turn
+    total_points = N_turns * points_per_turn  # Calculate total points to plot
+    d_c = thickness_of_solenoid(N_turns, 0.000675, L)  # thickness of solenoid
+    print(d_c)
+    ratio = d_c / L  # ratio of lengths of one area
+    print(ratio)
+    n_l = int(round(np.sqrt(N_turns / ratio), 0))  # amount of coils with equal r
+    n_d = int(round(N_turns / n_l, 0))  # amount of coils with equal d
+    print(n_l, n_d)
 
-    # Parametric equation for the helical shape
-    z = np.linspace(0, L, total_points)  # z-axis positions along the solenoid length
-    theta = np.linspace(0, 2 * np.pi * N_turns, total_points)  # Angular positions
+    # Solenoid Base: Along the Z-axis (standard solenoid)
+    current_base = np.zeros((total_points, 3))  # defining array for base solenoid
 
-    # Helix derivative of coordinates in cylindrical form
-    dx_helix = np.sin(theta)  # x-coordinates (circle)
-    dy_helix = -np.cos(theta)  # y-coordinates (circle)
+    point = 0  # counter
+    for i in range(n_d):  # loop over the various radii
+        for j in range(points_per_turn):  # loop over the various angles
+            theta = 2 * np.pi * (j / points_per_turn)
+            x = np.cos(theta)
+            y = np.sin(theta)
+            for k in range(n_l):  # loop over the various lengths
+                if point < total_points:
+                    current_base[point] = np.array([x, y, 0])
+                    point += 1
+                else:
+                    break
 
-    # Solenoid 1: Along the Z-axis (standard solenoid)
-    current_base = np.column_stack((dx_helix, dy_helix, [0]*total_points))
     if model_choice == "4S":
         current1 = rotate_vector(current_base, 'y', angle_opp / 2)
         current2 = rotate_vector(current_base, 'y', -angle_opp / 2)

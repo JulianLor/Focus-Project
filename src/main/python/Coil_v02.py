@@ -1,27 +1,44 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from Coil_paramters import thickness_of_solenoid
 
 # Function to generate points for the solenoids
 def generate_solenoid_points_flex(N_turns, L, R, shift_distance, points_per_turn, model_choice, angle, angle_adj, angle_opp):
-    # Calculate total points to plot
-    total_points = N_turns * points_per_turn
-
-    # Parametric equation for the helical shape
-    z = np.linspace(0, L, total_points)  # Solenoid length centered at the origin
-    theta = np.linspace(0, 2 * np.pi * N_turns, total_points)  # Angular positions
-
-    # Helix coordinates in cylindrical form
-    x_helix = R * np.cos(theta)  # x-coordinates (circle)
-    y_helix = R * np.sin(theta)  # y-coordinates (circle)
+    total_points = N_turns * points_per_turn # Calculate total points to plot
+    d_c = thickness_of_solenoid(N_turns, 0.000675, L) # thickness of solenoid
+    print(d_c)
+    ratio = d_c / L # ratio of lengths of one area
+    print(ratio)
+    n_l = int(round(np.sqrt(N_turns / ratio), 0)) # amount of coils with equal r
+    n_d = int(round(N_turns / n_l, 0)) # amount of coils with equal d
+    print(n_l, n_d)
 
     # Solenoid Base: Along the Z-axis (standard solenoid)
-    solenoid_base = np.column_stack((x_helix, y_helix, z + shift_distance))
+    solenoid_base = np.zeros((total_points, 3))  # defining array for base solenoid
+
+    point = 0 # counter
+    for i in range(n_d): # loop over the various radii
+        R_now = R + i * (d_c / n_d)
+        for j in range(points_per_turn): # loop over the various angles
+            theta = 2 * np.pi * (j / points_per_turn)
+            x = R_now * np.cos(theta)
+            y = R_now * np.sin(theta)
+            for k in range(n_l): # loop over the various lengths
+                if point < total_points:
+                    delta_z = L / n_l
+                    d_base = shift_distance + delta_z / 2 # standard distance + half the 1st coil
+                    z = d_base + k * delta_z
+                    solenoid_base[point] = np.array([x, y, z])
+                    point += 1
+                else:
+                    break
+
     if model_choice == "4S":
         # define solenoid points for Coils
         solenoid1 = rotate_vector(solenoid_base, 'y', angle_opp / 2)
         solenoid2 = rotate_vector(solenoid_base, 'y', -angle_opp / 2)
-        solenoid3 = rotate_vector(solenoid1, 'z', angle_adj / 2)
-        solenoid4 = rotate_vector(solenoid2, 'z', angle_adj / 2)
+        solenoid3 = rotate_vector(solenoid1, 'z', angle_adj)
+        solenoid4 = rotate_vector(solenoid2, 'z', angle_adj)
         solenoid_points = solenoid1, solenoid2, solenoid3, solenoid4
 
         plot_solenoids_flex(solenoid1, solenoid2, solenoid3, solenoid4)

@@ -2,25 +2,26 @@ import numpy as np
 
 # Constants: Coil
 mu_0 = 4 * np.pi * 1e-7  # Permeability of free space (T·m/A)
-N_turns = 50  # Number of turns
-L = 0.1  # 10 cm length
-R = 0.025  # 2.5 cm radius
-points_per_turn = 10  # points rendered
-shift_distance = 0.2 # distance to focus point
-I_max = 500  # maximal current
+N_turns = 300  # Number of turns
+L = 0.005  # 10 cm length
+R = 0.005  # 2.5 cm radius
+I_max = 6.65  # maximal current
+angle_opp = np.pi / 3 # describes angle between opposite solenoids (4S model)
+angle_adj = np.pi / 2 # describes angle between adjacent solenoids (4S model)
+angle = np.pi / 2 # angle between solenoids (3S model)
+
+# Constants: Animation
 Grid_density = 0.002  # defines the Grid_density
 Hz = 1 # rotations per second
 rot_freq = 60 # number of seconds to return to old rot. axis
 Grid_size = np.array([0.002, 0.002, 0.05]) # describes size of grid (x2)
-angle_opp = np.pi / 3 # describes angle between opposite solenoids (4S model)
-angle_adj = np.pi / 2 # describes angle between adjacent solenoids (4S model)
-angle = np.pi / 2 # angle between solenoids (3S model)
-dl = 2 * np.pi * R / points_per_turn # defines dl for Biot-Savart Law
+points_per_turn = 10  # points rendered
+shift_distance = 0.2 # distance to focus point
 
 # Constants: Animation
 output_folder = "frames"  # Folder to save the frames
 video_filename = "magnetic_field_animation_01.mp4"  # Output video filename
-span_of_animation = 5 # length of the animation
+span_of_animation = 2 # length of the animation
 time_steps = span_of_animation * 10 # Number of frames for the animation
 
 # Constants: Perm. Magnet

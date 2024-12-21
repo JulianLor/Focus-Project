@@ -11,7 +11,7 @@ from src.main.python.Coil_v02 import generate_solenoid_points_flex
 from src.main.python.Current_v02 import calculate_current_flex
 from Cancellation import cancellation_field
 from config import mu_0, N_turns, L, R, points_per_turn, shift_distance, I_max, Grid_density, Grid_size, time_steps, \
-  output_folder, video_filename, span_of_animation, Hz, rot_freq, angle, angle_adj, angle_opp, dl
+  output_folder, video_filename, span_of_animation, Hz, rot_freq, angle, angle_adj, angle_opp
 
 # calculate solenoid points - multithreading
 def generate_solenoid_points_task(N_turns, L, R, shift_distance, points_per_turn, model_choice, angle, angle_adj, angle_opp):
@@ -95,7 +95,7 @@ def r_magnitude(r):
     return np.linalg.norm(r)
 
 # take 3d current and radius and return 3d B-field
-def Biot_Savart_Law(mu_0, current, r, I_mag):
+def Biot_Savart_Law(mu_0, current, r, I_mag, dl):
     r_mag = np.linalg.norm(r)  # Magnitude of r vector
     if r_mag == 0:
         return np.array([0, 0, 0])  # To avoid division by zero
@@ -121,12 +121,14 @@ def calculate_B_field(solenoid, current, mag, N_turns, points_per_turn, mu_0, x,
     B = np.zeros((x.shape[0], x.shape[1], x.shape[2], 3))  # (nx, ny, nz, 3) for 3D vectors
 
     for i in range(solenoid_amnt_points(N_turns, points_per_turn)):
+        R = np.sqrt(solenoid[i,0] **2 + solenoid[i,1] **2)
+        dl = 2 * np.pi * R / points_per_turn
         for j in range(x.shape[0]):
             for k in range(x.shape[1]):
                 for l in range(x.shape[2]):
                     # Calculate the vector distance r from the solenoid point to the grid point
                     r = np.array(solenoid[i]) - np.array([x[j, k, l], y[j, k, l], z[j, k, l]])
-                    B[j, k, l] += Biot_Savart_Law(mu_0, current[i], r, mag) # Sum the contributions from each solenoid point
+                    B[j, k, l] += Biot_Savart_Law(mu_0, current[i], r, mag, dl) # Sum the contributions from each solenoid point
 
     return B
 

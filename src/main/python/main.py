@@ -5,7 +5,7 @@ import time
 import numpy as np
 from Permanent_Magnet_model import generate_animation_frames_pmodel, create_video_from_frames_pmodel
 from Cancellation import cancellation_field, plotting_canc_field
-"""
+
 # run the multiprocessing
 if __name__ == '__main__':
     # setup of time to measure time usage for each process
@@ -40,3 +40,4 @@ if __name__ == '__main__':
 
 B_fields_canc = cancellation_field()
 plotting_canc_field(B_fields_canc)
+"""
