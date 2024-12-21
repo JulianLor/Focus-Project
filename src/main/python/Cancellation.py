@@ -32,6 +32,7 @@ def cancellation_field():
     canc_magnet_moment_new = canc_magnet_moment * canc_cube_volume
 
     calculate_force(canc_magnet_centers, canc_magnet_moment, canc_magnet_dimensions)
+    calculate_torque(canc_magnet_centers, canc_magnet_moment, canc_magnet_dimensions)
 
     x, y, z = setup_plot(Grid_density, Grid_size)
     print(z.shape)
@@ -86,21 +87,7 @@ def plotting_canc_field(B_fields_canc):
 
 # rotate any vector around axis
 def rotate_vector(vector, axis, theta):
-    """
-    Rotates a 3D vector around the x, y, or z axis by a specified angle.
 
-    Parameters:
-    vector : array-like (3 elements)
-        The 3D vector to be rotated.
-    axis : str
-        The axis of rotation: 'x', 'y', or 'z'.
-    theta : float
-        The angle of rotation in radians.
-
-    Returns:
-    rotated_vector : numpy array (3 elements)
-        The rotated 3D vector.
-    """
     vector = np.array(vector)
 
     # Rotation matrix based on the axis
@@ -164,8 +151,22 @@ def superpositioning_of_Vector_fields(B_fields):
 def plot_magnetic_field(x, y, z, Bx, By, Bz, output_folder):
     step = 5000
     B_magnitude = np.sqrt(Bx ** 2 + By ** 2 + Bz ** 2)
+    Bx_plot = np.zeros((Bx.shape))
+    By_plot = np.zeros((By.shape))
+    Bz_plot = np.zeros((Bz.shape))
+    for i in range(Bx.shape[0]):
+        for j in range(Bx.shape[1]):
+            for k in range(Bx.shape[2]):
+                vector = np.array([Bx[i, j, k], By[i, j, k], Bz[i, j, k]])
+                magnitude = np.linalg.norm(vector) * 1000
+                direction = vector / magnitude
+                magnitude_new = np.log(np.log(magnitude + 1) + 1)
+                Bx_plot[i,j,k] = direction[0] * magnitude_new
+                By_plot[i,j,k] = direction[1] * magnitude_new
+                Bz_plot[i,j,k] = direction[2] * magnitude_new
+
     mlab.figure(size=(1920, 1080), bgcolor=(1, 1, 1))  # Create a white background figure
-    quiver = mlab.quiver3d(x, y, z, Bx, By, Bz, scalars=B_magnitude, scale_factor=20, colormap='jet')
+    quiver = mlab.quiver3d(x, y, z, Bx_plot, By_plot, Bz_plot, scalars=B_magnitude, scale_factor=3, colormap='jet')
     mlab.view(azimuth=45, elevation=45, distance=3)
     mlab.colorbar(quiver, title="Field Magnitude", orientation='vertical')
     mlab.title(f"Magnetic Field of Cancellation Field {step}", size=0.2)
@@ -254,6 +255,24 @@ def magnetic_dipole_gradient(m, r):
     prefactor = (3 / r_mag**5) * mu_0
     B_grad = prefactor * (term1 + term2 + term3 + term4)
     return B_grad
+def calculate_torque(canc_magnet_centers, canc_magnet_moment, dim):
+    volume = volume_of_magnet(dim)
+    magnetisation = magnetisation_of_magnet(volume, canc_magnet_moment)
+
+    for i in range(len(canc_magnet_centers)):
+        torque = np.zeros(3, dtype=float)
+        for j in range(len(canc_magnet_centers)):
+            if i != j:
+                r = canc_magnet_centers[i] - canc_magnet_centers[j]
+                B = calculate_magnetic_field(r, magnetisation)
+                torque += torque_on_magnet(magnetisation, B)
+        print("Force on Permament Magnet: ", round(np.linalg.norm(torque), 2), "N")
+        print("Mx, My, Mz: ", round(float(torque[0]), 2), ",", round(float(torque[1]), 2), ",", round(float(torque[2]), 2))
+
+def torque_on_magnet(magnetisation, B):
+    # calculate torque based on B-flux and magnetisation
+    torque = np.cross(magnetisation, B)  # Compute the cross product
+    return torque
 
 def volume_of_magnet(dim):
     return dim[0] * dim[1] * dim[2]

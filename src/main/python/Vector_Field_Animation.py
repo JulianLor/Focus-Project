@@ -133,11 +133,25 @@ def calculate_B_field(solenoid, current, mag, N_turns, points_per_turn, mu_0, x,
 # Plot and save each frame
 def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
     B_magnitude = np.sqrt(Bx ** 2 + By ** 2 + Bz ** 2)
+    Bx_plot = np.zeros((Bx.shape))
+    By_plot = np.zeros((By.shape))
+    Bz_plot = np.zeros((Bz.shape))
+    for i in range(Bx.shape[0]):
+        for j in range(Bx.shape[1]):
+            for k in range(Bx.shape[2]):
+                vector = np.array([Bx[i, j, k], By[i, j, k], Bz[i, j, k]])
+                magnitude = np.linalg.norm(vector) * 1000
+                direction = vector / magnitude
+                magnitude_new = np.log(np.log(magnitude + 1) + 1)
+                Bx_plot[i, j, k] = direction[0] * magnitude_new
+                By_plot[i, j, k] = direction[1] * magnitude_new
+                Bz_plot[i, j, k] = direction[2] * magnitude_new
+
     mlab.figure(size=(1920, 1080), bgcolor=(1, 1, 1))  # Create a white background figure
-    quiver = mlab.quiver3d(x, y, z, Bx, By, Bz, scalars=B_magnitude, scale_factor=5, colormap='jet')
-    mlab.view(azimuth=45, elevation=45, distance=1)
+    quiver = mlab.quiver3d(x, y, z, Bx_plot, By_plot, Bz_plot, scalars=B_magnitude, scale_factor=3, colormap='jet')
+    mlab.view(azimuth=45, elevation=45, distance=3)
     mlab.colorbar(quiver, title="Field Magnitude", orientation='vertical')
-    mlab.title(f"Magnetic Field at Step {step}", size=0.2)
+    mlab.title(f"Magnetic Field of Cancellation Field {step}", size=0.2)
 
     # Find the vector magnitude at the origin
     origin_index = np.argmin(np.abs(x) + np.abs(y) + np.abs(z))  # Closest index to origin
@@ -147,8 +161,8 @@ def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
     origin_coords = (x.flatten()[origin_index], y.flatten()[origin_index], z.flatten()[origin_index])
 
     # Add custom text along with the vector magnitude at the origin
-    text = f"Magnitude in Milliteslas: {round(origin_magnitude, 6) * 1000}"
-    mlab.text3d(origin_coords[0], origin_coords[1], origin_coords[2], text, scale=0.01, color=(0, 0, 0))
+    text = f"Magnitude in Milliteslas: {round(origin_magnitude * 1000, 3)}"
+    mlab.text3d(origin_coords[0], origin_coords[1], origin_coords[2], text, scale=0.07, color=(0, 0, 0))
 
     # Save the frame as an image
     frame_filename = os.path.join(output_folder, f"frame_{step:03d}.png")
