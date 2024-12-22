@@ -6,12 +6,9 @@ from Coil_paramters import thickness_of_solenoid
 def generate_solenoid_points_flex(N_turns, L, R, shift_distance, points_per_turn, model_choice, angle, angle_adj, angle_opp):
     total_points = N_turns * points_per_turn # Calculate total points to plot
     d_c = thickness_of_solenoid(N_turns, 0.000675, L) # thickness of solenoid
-    print(d_c)
     ratio = d_c / L # ratio of lengths of one area
-    print(ratio)
     n_l = int(round(np.sqrt(N_turns / ratio), 0)) # amount of coils with equal r
     n_d = int(round(N_turns / n_l, 0)) # amount of coils with equal d
-    print(n_l, n_d)
 
     # Solenoid Base: Along the Z-axis (standard solenoid)
     solenoid_base = np.zeros((total_points, 3))  # defining array for base solenoid

@@ -11,10 +11,10 @@ angle_adj = np.pi / 2 # describes angle between adjacent solenoids (4S model)
 angle = np.pi / 2 # angle between solenoids (3S model)
 
 # Constants: Animation
-Grid_density = 0.002  # defines the Grid_density
+Grid_density = 0.05  # defines the Grid_density
 Hz = 1 # rotations per second
 rot_freq = 60 # number of seconds to return to old rot. axis
-Grid_size = np.array([0.002, 0.002, 0.05]) # describes size of grid (x2)
+Grid_size = np.array([0.1, 0.1, 0.1]) # describes size of grid (x2)
 points_per_turn = 10  # points rendered
 shift_distance = 0.2 # distance to focus point
 

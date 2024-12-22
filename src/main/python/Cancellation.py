@@ -266,7 +266,7 @@ def calculate_torque(canc_magnet_centers, canc_magnet_moment, dim):
                 r = canc_magnet_centers[i] - canc_magnet_centers[j]
                 B = calculate_magnetic_field(r, magnetisation)
                 torque += torque_on_magnet(magnetisation, B)
-        print("Force on Permament Magnet: ", round(np.linalg.norm(torque), 2), "N")
+        print("Torque on Permament Magnet: ", round(np.linalg.norm(torque), 2), "N")
         print("Mx, My, Mz: ", round(float(torque[0]), 2), ",", round(float(torque[1]), 2), ",", round(float(torque[2]), 2))
 
 def torque_on_magnet(magnetisation, B):

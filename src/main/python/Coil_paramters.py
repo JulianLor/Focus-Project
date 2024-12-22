@@ -46,7 +46,7 @@ bounds = [(0.0005, None),
           (0, None),
           (0.005, None)]
 
-# run paramter calc
+# run parameter calc
 def Coil_parameter_calc():
     d_c = thickness_of_solenoid(N, r_c, l_c)
     print("d_c:", d_c)
