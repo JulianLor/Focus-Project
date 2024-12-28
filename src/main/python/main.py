@@ -31,9 +31,8 @@ if __name__ == '__main__':
         print("Time needed for Solenoid", i + 1, f": {time_process:.2f} seconds")
 
     # Run MP for timed B-fields
-    calc_timed_B_field(time_steps, B_fields_base, current_mag, canc_field, x, y, z)
-    # run multiprocessing
-    B_field = run_multiprocessing(time_steps, solenoid_points, current, current_mag, canc_field,  x, y, z)
+    B_field = calc_timed_B_field(time_steps, B_fields_base, current_mag, canc_field, x, y, z)
+
     # time needed for MP
     Tot_time = time.time() - start_time
     MP_time = Tot_time - setup_time
@@ -44,7 +43,7 @@ if __name__ == '__main__':
     B_field_analysis(B_field, x ,y ,z, time_steps)
 
     # create video / animation from frames
-    create_video_from_frames()
+    create_video_from_frames(time_steps)
 
 """
 

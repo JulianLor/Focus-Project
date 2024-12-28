@@ -2,6 +2,7 @@ import numpy as np
 from mayavi import mlab
 import os
 import imageio.v2 as imageio
+from PIL import Image
 import time
 from multiprocessing import Pool, shared_memory
 from functools import partial
@@ -138,19 +139,21 @@ def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
     Bx_plot = np.zeros((Bx.shape))
     By_plot = np.zeros((By.shape))
     Bz_plot = np.zeros((Bz.shape))
-    for i in range(Bx.shape[0]):
-        for j in range(Bx.shape[1]):
-            for k in range(Bx.shape[2]):
-                vector = np.array([Bx[i, j, k], By[i, j, k], Bz[i, j, k]])
-                magnitude = np.linalg.norm(vector) * 1000
-                direction = vector / magnitude
-                magnitude_new = np.log(np.log(magnitude + 1) + 1)
-                Bx_plot[i, j, k] = direction[0] * magnitude_new
-                By_plot[i, j, k] = direction[1] * magnitude_new
-                Bz_plot[i, j, k] = direction[2] * magnitude_new
+    if x.shape != (1, 1, 1):
+        for i in range(Bx.shape[0]):
+            for j in range(Bx.shape[1]):
+                for k in range(Bx.shape[2]):
+                    vector = np.array([Bx[i, j, k], By[i, j, k], Bz[i, j, k]])
+                    magnitude = np.linalg.norm(vector) * 1000
+                    direction = vector / magnitude
+                    magnitude_new = np.log(np.log(magnitude + 1) + 1)
+                    Bx_plot[i, j, k] = direction[0] * magnitude_new
+                    By_plot[i, j, k] = direction[1] * magnitude_new
+                    Bz_plot[i, j, k] = direction[2] * magnitude_new
 
+    mlab.options.offscreen = True  # Ensure consistent off-screen rendering
     mlab.figure(size=(1920, 1080), bgcolor=(1, 1, 1))  # Create a white background figure
-    quiver = mlab.quiver3d(x, y, z, Bx_plot, By_plot, Bz_plot, scalars=B_magnitude, scale_factor=3, colormap='jet')
+    quiver = mlab.quiver3d(x, y, z, Bx_plot, By_plot, Bz_plot, scalars=B_magnitude, scale_factor=15, colormap='jet')
     mlab.view(azimuth=45, elevation=45, distance=3)
     mlab.colorbar(quiver, title="Field Magnitude", orientation='vertical')
     mlab.title(f"Magnetic Field of Cancellation Field {step}", size=0.2)
@@ -164,12 +167,16 @@ def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
 
     # Add custom text along with the vector magnitude at the origin
     text = f"Magnitude in Milliteslas: {round(origin_magnitude * 1000, 3)}"
-    mlab.text3d(origin_coords[0], origin_coords[1], origin_coords[2], text, scale=0.07, color=(0, 0, 0))
+    mlab.text3d(origin_coords[0], origin_coords[1], origin_coords[2], text, scale=0.03, color=(0, 0, 0))
 
     # Save the frame as an image
     frame_filename = os.path.join(output_folder, f"frame_{step:03d}.png")
-    mlab.savefig(frame_filename, size=(1920, 1080))
+    mlab.savefig(frame_filename, size=(480, 256))
     mlab.close()
+
+    # Verify the saved image size
+    image = Image.open(frame_filename)
+    print(f"Frame {step} saved with dimensions: {image.size}")
 
 
 # Generates frames of animation
@@ -299,6 +306,9 @@ def calc_timed_B_field(time_steps, B_fields_base, current_mag, canc_field, x, y,
     # define variable over which to run the MP
     animation_steps = range(time_steps)
 
+    # define variable in which to store the B-field
+    B_field = np.zeros((animation_steps, x.shape[0], x.shape[1], x.shape[2], 3))
+
     # create shared memory for solenoid_points, current_mag and current
     shm_B_fields_base = shared_memory.SharedMemory(create=True, size=B_fields_base.nbytes)
     shm_current_mag = shared_memory.SharedMemory(create=True, size=current_mag.nbytes)
@@ -318,8 +328,8 @@ def calc_timed_B_field(time_steps, B_fields_base, current_mag, canc_field, x, y,
                             shm_current_mag.name, shm_canc_field.name, B_fields_base.shape, current_mag.shape,
                             canc_field.shape, x, y, z)
 
-    with Pool() as pool:
-        B_field = pool.map(func=task_function, iterable=animation_steps)
+    with Pool(processes=5) as pool:
+        B_field[animation_steps] = pool.map(func=task_function, iterable=animation_steps)
         pool.close()
         pool.join()
 
@@ -385,7 +395,7 @@ def B_field_factor_multiplication(B_field, current_mag):
     return timed_B_field
 
 # Create video from saved frames
-def create_video_from_frames():
+def create_video_from_frames(time_steps):
     images = []
     for step in range(time_steps):
         frame_filename = os.path.join(output_folder, f"frame_{step:03d}.png")

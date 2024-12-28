@@ -49,7 +49,8 @@ def cancellation_field():
     B_fields_canc_mag = np.linalg.norm(B_fields_canc, axis=0)
 
     # Output B-mag on z axis
-    plot_canc_field_z_axis(B_fields_canc_mag, Grid_density, Grid_size)
+    if x.shape != (1, 1, 1):
+        plot_canc_field_z_axis(B_fields_canc_mag, Grid_density, Grid_size)
 
     min_coords = np.unravel_index(np.argmin(B_fields_canc_mag), B_fields_canc_mag.shape)
     print("Minimum magnitude location:", min_coords)
