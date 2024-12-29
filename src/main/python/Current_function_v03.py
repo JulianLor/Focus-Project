@@ -35,8 +35,6 @@ def current_function_4S(rot_freq, Hz):
             B_z = B[time, 2, ...]
             plot_magnetic_field(x, y, z, B_x, B_y, B_z, time, output_folder)
 
-
-
     create_video_from_frames(rot_freq * 10)
 
 def calc_angle_over_time(rot_freq, Hz, time, M):

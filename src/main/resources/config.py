@@ -9,6 +9,10 @@ I_max = 6.65  # maximal current
 angle_opp = np.pi / 3 # describes angle between opposite solenoids (4S model)
 angle_adj = np.pi / 2 # describes angle between adjacent solenoids (4S model)
 angle = np.pi / 2 # angle between solenoids (3S model)
+isolation_ratio = 1.05 # the ratio of r(with isolation) / r(without isolation
+delta = 0.65 # linear factor of Reality/Biot-Savart Law
+pI = 5 # current density (in A/mm^2)
+p_copper = 8.96 # density of copper in g / cm^3
 
 # Constants: Animation
 Grid_density = 0.05  # defines the Grid_density
