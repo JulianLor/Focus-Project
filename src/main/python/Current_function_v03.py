@@ -61,9 +61,9 @@ def calc_angle_over_time(rot_freq, Hz, time, M):
 
 def B_flux_current_transformation(B, M):
     I = np.dot(M, B)
-    return B_flux_genereted(I, B)
+    return B_flux_generated(I, B)
 
-def B_flux_genereted(I, B):
+def B_flux_generated(I, B):
     B_x = 1 / 2 * (I[0] - I[1])
     B_y = 1 / 2 * (I[2] - I[3])
     B_z = np.sqrt(3) / 2 * (I[0] + I[1] + I[2] + I[3])

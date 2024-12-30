@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import ndarray
-from Helper_functions import angle_calc, rotate_vector
-from config import mu_0, points_per_turn
+from Helper_functions import angle_calc, rotate_vector, create_r_vector, Biot_Savart_Law, Lorentz_force
+from config import mu_0
 
 class Coil:
     # class level constants
@@ -9,10 +9,12 @@ class Coil:
     RADIUS_IN       = 0.005      # Inner radius of the coil
     LENGTH_C        = 0.005      # Length of the coil
     RADIUS_C        = 0.000675   # Radius of the cable
-    DISTANCE_Z      = 0.12       # Vertical distance from Actuation System to Focus-point
     ISOLATION_RATIO = 1.05       # the ratio of r(with isolation) / r(without isolation)
     DELTA           = 0.65       # linear factor of Reality/Biot-Savart Law
     CURRENT_DENSITY = 5          # current density limit (in A/mm^2)
+    RESISTIVITY     = 1.68e-08   # resistivity of copper at 20 degrees Celsius
+    TEMP_COEFF      = 0.00393    # Temperature coefficient for the resistivity 1 / Celsius
+    POINTS_PER_TURN = 50         # how many points per turn will be rendered
 
     # class attributes types
     d_z:   float   # vertical distance from actuation system to Focus-point
@@ -30,12 +32,16 @@ class Coil:
         self.n_l = self.get_n_l()
         self.n_d = self.get_n_d()
 
+    ### adaptations of the electromagnets attributes ###
+
     # adapt the Coil's d_z
     def set_d_z(self, d_z: float):
         self.d_z = d_z
 
     def set_angle(self, angle: list):
         self.angle = angle
+
+    ### get parameters of the electromagnet ###
 
     # thickness of solenoid
     def get_d_c(self) -> float:
@@ -57,6 +63,10 @@ class Coil:
         d_hat = (0.5 * (self.d ** 3 + (self.d + self.LENGTH_C) ** 3)) ** (1 / 3)
         return d_hat
 
+    def get_cable_length(self) -> float:
+        length = self.N_TURNS * (2 * np.pi * (self.RADIUS_IN * 100 + self.d_c * 100 / 2))
+        return length
+
     # volume of solenoid in cm^3 (calculated by the area * length)
     def get_volume_solenoid_area(self) -> float:
         vol = self.LENGTH_C * 100 * np.pi * ((self.d_c * 100 + self.RADIUS_IN * 100) ** 2 - (self.RADIUS_IN * 100) ** 2)
@@ -64,12 +74,12 @@ class Coil:
 
     # volume of solenoid in cm^3 (calculated based on the total length of the coil)
     def get_volume_coil_length(self) -> float:
-        vol = self.N_TURNS * np.pi * (self.RADIUS_C * 100) ** 2 * (2 * np.pi * (self.RADIUS_IN * 100 + self.d_c * 100 / 2))
+        vol = np.pi * (self.RADIUS_C * 100) ** 2 * self.get_cable_length()
         return vol
 
     # calculating the total points rendered for one coil
     def get_total_points(self) -> int:
-        total_points = self.N_TURNS * points_per_turn
+        total_points = self.N_TURNS * self.POINTS_PER_TURN
         return total_points
 
     # calculating how many turns have the same radius
@@ -86,19 +96,20 @@ class Coil:
         n_d = int(round(self.N_TURNS / int(round(np.sqrt(self.N_TURNS / ratio), 0)), 0)) # amount of coils with equal d
         return n_d
 
-    # B-flux generated at the Focus point (Biot-Savart law)
-    def B_flux_calc(self) -> float:
-        r_hat = self.get_r_hat() # getting r_hat for calc
-        d_hat = self.get_d_hat() # getting d_hat for calc
+    # define the dl: length of coil represented by a solenoid point
+    def get_dl(self, solenoid_point) -> float:
+        # rotate point back to where z is constant so that we can calc r with x, y coords
+        coords = self.rotating_point_to_pos(solenoid_point, 'inverse')
+        r = np.sqrt(coords[0] ** 2 + coords[1] ** 2)
+        # determine the length the fraction of the circumference
+        dl = 2 * np.pi * r / self.POINTS_PER_TURN
+        return dl
 
-        B_flux = self.DELTA * (mu_0 * self.CURRENT_DENSITY / self.ISOLATION_RATIO *
-                               self.N_TURNS * np.pi *(self.RADIUS_C * 1000) ** 2 *
-                               r_hat ** 2 / (2 * d_hat ** 3) * 1000)
-        return B_flux
+    ### methods supporting for basic functionality ###
 
     # calculating the varying distance: most inner distance is offset by a coil radius (half a step)
     def varying_distance_calc(self, total: float, steps: int, i: int, mode: str) -> float:
-        if mode == "r":
+        if mode == 'r':
             base = self.RADIUS_IN
         else:
             base = self.LENGTH_C
@@ -107,9 +118,17 @@ class Coil:
         return distance
 
     # rotating the preliminary position of the point according to the solenoids position
-    def rotating_point_to_pos(self, point: list) -> list:
-        coordinates = rotate_vector(point, self.angle[0], self.angle[1])
+    def rotating_point_to_pos(self, point: list, mode: str) -> list:
+        if mode == 'inverse': # if we want to angle to point back to where z is constant
+            coordinates = rotate_vector(point, self.angle[0], -self.angle[1])
+        elif mode == 'normal': # rotation to its position
+            coordinates = rotate_vector(point, self.angle[0], self.angle[1])
+        else:
+            print('Invalid mode')
+            exit()
         return coordinates
+
+    ### methods to define the array saving the current vector and point coordinates ###
 
     # calculating / defining each point of the solenoid
     def get_solenoid_point(self, parameter: ndarray) -> list:
@@ -120,12 +139,14 @@ class Coil:
         y = r * np.sin(theta)
         z = d
 
+        # calculate the dl for future uses -> B-flux gen.
+        dl = self.get_dl(r)
         # saving the preliminary coords in list
         point = [x, y, z]
 
         # rotate point to position (pos)
-        x, y, z = self.rotating_point_to_pos(point)
-        return [x, y, z]
+        x, y, z = self.rotating_point_to_pos(point, 'normal')
+        return [x, y, z, dl]
 
     # calculating / defining each points current vector
     def get_current_vector(self, theta: float) -> list:
@@ -138,19 +159,19 @@ class Coil:
         vector = [x, y, z]
 
         # rotate point to position (pos)
-        v_x, v_y, v_z = self.rotating_point_to_pos(vector)
+        v_x, v_y, v_z = self.rotating_point_to_pos(vector, 'normal')
         return [v_x, v_y, v_z]
 
     # get the solenoid points parameters: (theta, r, d)
     def get_point_parameters(self, i: int, j: int, k: int) -> list:
         # defining the radius
-        r = self.varying_distance_calc(self.d_c, self.n_d, i, "r")
+        r = self.varying_distance_calc(self.d_c, self.n_d, i, 'r')
 
         # defining the distance
-        d = self.varying_distance_calc(self.d, self.n_l, j, "d")
+        d = self.varying_distance_calc(self.d, self.n_l, j, 'd')
 
         # defining the point in the loop
-        theta = angle_calc(2 * np.pi, k, points_per_turn)
+        theta = angle_calc(2 * np.pi, k, self.POINTS_PER_TURN)
         return [r, theta, d]
 
     # loop over every point and get their parameters: r, d, theta
@@ -162,7 +183,7 @@ class Coil:
 
         for i in range(self.n_d):  # iterating over each radius
             for j in range(self.n_l):  # iterating over each distance
-                for k in range(points_per_turn):  # iterating over each point in a loop
+                for k in range(self.POINTS_PER_TURN):  # iterating over each point in a loop
                     # getting the points parameters: r, d, theta
                     parameters[index] = self.get_point_parameters(i, j, k)
 
@@ -172,8 +193,8 @@ class Coil:
 
     # define the coordinates of every point in the solenoid
     def get_solenoid_points(self) -> ndarray:
-        # defining the variable storing each points coordinate
-        solenoid_point_coords = np.zeros((self.get_total_points(), 3))
+        # defining the variable storing each points coordinate and the dl
+        solenoid_point_coords = np.zeros((self.get_total_points(), 4))
 
         # get the parameters for every point of the solenoid
         parameters = self.get_solenoid_point_parameters()
@@ -198,6 +219,8 @@ class Coil:
 
         return solenoid_current_vector
 
+    ### setting the current for the electromagnet ###
+
     # taking a magnitude and giving the specific current at each point
     def set_solenoid_current(self, solenoid_current_vector: ndarray, current_magnitude: float) -> ndarray:
         solenoid_current = np.zeros((self.get_total_points(), 3)) # define variable for current in solenoid
@@ -207,3 +230,65 @@ class Coil:
             solenoid_current[vector] = solenoid_current_vector[vector] * current_magnitude
 
         return solenoid_current
+
+    ### calculations based on the B-flux generation ###
+
+    # calculate the B-flux generated by the solenoid to a point
+    def get_B_flux(self, o_point: ndarray, solenoid_point: ndarray, solenoid_current: ndarray) -> ndarray:
+        # get dl and r for the Biot-Savart Law
+        dl = self.get_dl(solenoid_point)
+        r = create_r_vector(solenoid_point, o_point)
+        # get the B-flux by a current carrying coil with the Biot-savart law
+        B = Biot_Savart_Law(r, solenoid_current, dl)
+        return B
+
+    # calculate the B-flux generated by the whole solenoid to a point
+    def get_solenoid_B_flux(self, o_point: ndarray, solenoid_point_coords: ndarray,
+                            solenoid_current: ndarray) -> ndarray:
+        B = np.array([0,0,0]) # set initial flux to zero
+        for index in range(solenoid_point_coords.shape[0]): # loop over every index to sum the B-flux
+            B += self.get_B_flux(o_point, solenoid_point_coords[index], solenoid_current[index])
+        return B
+
+    # calculate Lorentz' Force on a current I at point p
+    def lorentz_force_calc(self, o_point: ndarray, o_I: ndarray, o_dl: float,
+                           solenoid_point_coords: ndarray, solenoid_current: ndarray) -> ndarray:
+        # get the B-flux generated by the coil at this point
+        B = self.get_solenoid_B_flux(o_point, solenoid_point_coords, solenoid_current)
+        # get the necessary units for calculating the force
+        I_mag = float(np.linalg.norm(o_I))
+        dl_vec = o_I * (o_dl / I_mag)
+        # calculate force according to Lorentz Force
+        lorentz_force = Lorentz_force(I_mag, dl_vec, B)
+        return lorentz_force
+
+    ### Thermodynamics: calculating basic parameters ###
+
+    # calculate the coil's base resistance (R = p * L / A)
+    def get_resistance(self) -> float:
+        R = self.RESISTIVITY * self.get_cable_length() / np.pi * self.RADIUS_C ** 2
+        return R
+
+    # calculate the coil's Temperature dependant Resistance
+    def get_coil_resistance(self, T: float) -> float:
+        factor = self.TEMP_COEFF * (T - 20)  # get the multiplicative factor (delta T * coeff)
+        R = factor * self.get_resistance()  # new temperature dependant resistance
+        return R
+
+    # calculate the coil's inductance (mu_0 * A * N^2 / l)
+    def get_inductance(self) -> float:
+        L = mu_0 * np.pi * (self.RADIUS_IN + self.d_c) ** 2 * self.N_TURNS ** 2 / self.LENGTH_C
+        return L
+
+    # get the coil's impedance
+    def get_impedance(self, T: float) -> float:
+        R = self.get_coil_resistance(T)
+        L = self.get_inductance()
+        Z = np.sqrt(R ** 2 + L ** 2)
+        return Z
+
+    # calculate the coil's Energy usage
+    def get_coil_energy_use(self, T: float, I) -> float:
+        Z = self.get_impedance(T)
+        W = Z * I ** 2
+        return W

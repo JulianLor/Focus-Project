@@ -1,11 +1,9 @@
 import numpy as np
 from numpy import ndarray
 from config import mu_0
-from Helper_functions import (rotate_vector, check_vector_size, create_r_vector,
-                              magnetic_force, magnetic_torque)
+from Helper_functions import rotate_vector, check_vector_size, create_r_vector, magnetic_force, magnetic_torque
 
-
-class Magnet:
+class PermanentMagnet:
     # class level constants
     CUBE_SIZE = 0.01  # FEM smallest magnet size
 
@@ -23,6 +21,8 @@ class Magnet:
         self.angle          = angle
         self.magnetisation  = self.magnetisation_calc('FEM')
 
+    ### adaptations of the permanent magnet attributes ###
+
     # adapt the magnet's position
     def set_pos(self, pos: list):
         self.pos = pos
@@ -38,6 +38,8 @@ class Magnet:
     # adapt the magnet's moment
     def set_magnet_moment(self, magnet_moment: float):
         self.magnet_moment = magnet_moment
+
+    ### get parameters of the permanent magnet ###
 
     # calculate the distance from an edge of the magnet to the axis
     def get_d(self, index: int) -> float:
@@ -69,6 +71,8 @@ class Magnet:
         vector = [0,0,self.magnet_moment]
         moment_vector = np.array(rotate_vector(vector, self.angle[0], self.angle[1]))
         return moment_vector
+
+    ### FEM setup for the permanent magnet ###
 
     # calculate the number of FEM centers
     def get_FEM_number(self) -> int:
@@ -113,6 +117,8 @@ class Magnet:
         # multiply the volume with the moment vector given by method
         magnetisation = vol * self.get_moment_vector()
         return magnetisation
+
+    ### calculations around the FEM: B-Flux gen ###
 
     # calculate the magnetic flux at a point based on r and the magnetisation (FEM method)
     def B_flux_calc(self, r: ndarray) -> ndarray:

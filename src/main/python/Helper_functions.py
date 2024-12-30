@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import ndarray
 import matplotlib.pyplot as plt
+from config import mu_0
 
 # vector transformation around x, y, z axis
 def rotate_vector(vector: list, axis: str, theta: float) -> list:
@@ -105,7 +106,20 @@ def create_r_vector(A: ndarray, B: ndarray) -> ndarray:
 def magnetic_torque(magnetisation: ndarray, B: ndarray) -> ndarray:
     torque = np.dot(magnetisation, B)
     return torque
+
 # calculates the force by M-vector and B-flux gradient
 def magnetic_force(magnetisation: ndarray, B_grad: ndarray) -> ndarray:
     force = np.dot(magnetisation, B_grad)
+    return force
+
+# uses Biot-Savart Law to calculate a currents B-flux at a point
+def Biot_Savart_Law(r: ndarray, current: ndarray, dl: float) -> ndarray:
+    if check_vector_size(r, '<', 0.0001): # avoid division by 0
+        return np.array([0, 0, 0])  # To avoid division by zero
+    B = np.linalg.norm(current) * dl * mu_0 * np.cross(current, r) / ((np.linalg.norm(r) ** 3) * 4 * np.pi)
+    return B
+
+# uses Lorentz force to calc the force from B-flux on current carrying wire
+def Lorentz_force(I: float, dl: ndarray, B: ndarray) -> ndarray:
+    force = I * np.cross(dl, B)
     return force

@@ -61,7 +61,7 @@ def Coil_parameter_calc():
     print("r_hat:", r_hat)
 
     # B-field at Focus point (Biot-Savart law)
-    B = delta * (mu_0 * pI / isolation_ratio * N * np.pi * (r_c * 1000) ** 2 * r_hat ** 2 / (2 * d_hat ** 3) * 1000)
+    B = delta * (mu_0 * pI / isolation_ratio * N * np.pi * (r_c * 1000) ** 2 * r_hat ** 2 / ((r_hat + d_hat) ** 3) * 1000)
     print("B:", B, "(mT)")
     # Weight based on Volume
     w = 9 * l_c * 100 * np.pi * ((d_c * 100 + r_in * 100) ** 2 - (r_in * 100) ** 2)
