@@ -256,6 +256,7 @@ def magnetic_dipole_gradient(m, r):
     prefactor = (3 / r_mag**5) * mu_0
     B_grad = prefactor * (term1 + term2 + term3 + term4)
     return B_grad
+
 def calculate_torque(canc_magnet_centers, canc_magnet_moment, dim):
     volume = volume_of_magnet(dim)
     magnetisation = magnetisation_of_magnet(volume, canc_magnet_moment)
