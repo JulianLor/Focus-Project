@@ -5,6 +5,7 @@ mu_0 = 4 * np.pi * 1e-7  # Permeability of free space (T·m/A)
 N_turns = 300  # Number of turns
 L = 0.005  # 10 cm length
 R = 0.005  # 2.5 cm radius
+r_c = 0.000675
 I_max = 6.65  # maximal current
 angle_opp = np.pi / 3 # describes angle between opposite solenoids (4S model)
 angle_adj = np.pi / 2 # describes angle between adjacent solenoids (4S model)
@@ -19,7 +20,7 @@ Grid_density = 0.05  # defines the Grid_density
 Hz = 2 # rotations per second
 rot_freq = 6 # number of seconds to return to old rot. axis
 Grid_size = np.array([0.05, 0.05, 0.05]) # describes size of grid (x2)
-points_per_turn = 10  # points rendered
+points_per_turn = 50  # points rendered
 shift_distance = 0.2 # distance to focus point
 
 # Constants: Animation
