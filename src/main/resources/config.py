@@ -28,6 +28,7 @@ output_folder = "frames"  # Folder to save the frames
 video_filename = "magnetic_field_animation_01.mp4"  # Output video filename
 span_of_animation = 2 # length of the animation
 time_steps = span_of_animation * 10 # Number of frames for the animation
+fps = 10
 
 # Constants: Perm. Magnet
 magnet_center = np.array([0, 0, 0.16]) # Permanent magnet coordinates

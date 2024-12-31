@@ -5,7 +5,7 @@ from Helper_functions import rotate_vector, check_vector_size, create_r_vector, 
 
 class PermanentMagnet:
     # class level constants
-    CUBE_SIZE = 0.01  # FEM smallest magnet size
+    CUBE_SIZE =         0.01     # FEM smallest magnet size
 
     # class attribute types
     pos:                list     # position of the magnets center

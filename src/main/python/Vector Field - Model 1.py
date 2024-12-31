@@ -1,7 +1,7 @@
 import numpy as np
 from mayavi import mlab
 from src.main.python.main import generate_solenoid_points
-from Current import calculate_current
+from ActuationSystem import calculate_current
 
 
 # Constants
