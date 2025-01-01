@@ -68,7 +68,7 @@ class PermanentMagnet:
 
     # calculate the moment vector based on pos
     def get_moment_vector(self) -> ndarray:
-        vector = [0,0,self.magnet_moment]
+        vector = np.array([0,0,self.magnet_moment])
         moment_vector = np.array(rotate_vector(vector, self.angle[0], self.angle[1]))
         return moment_vector
 

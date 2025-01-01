@@ -3,8 +3,7 @@ from numpy import ndarray
 from config import mu_0
 
 # vector transformation around x, y, z axis
-def rotate_vector(vector: list, axis: str, theta: float) -> list:
-    vector = np.array(vector)
+def rotate_vector(vector: ndarray, axis: str, theta: float) -> ndarray:
     # Rotation matrix based on the axis
     if axis == 'x':
         rotation_matrix = np.array([

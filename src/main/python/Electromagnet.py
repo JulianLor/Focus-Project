@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import ndarray
-from Helper_functions import angle_calc, rotate_vector, create_r_vector, Biot_Savart_Law, Lorentz_force
-from config import mu_0
+from src.main.python.Helper_functions import angle_calc, rotate_vector, create_r_vector, Biot_Savart_Law, Lorentz_force
+from src.main.resources.config import mu_0
 
 class Electromagnet:
     # class level constants
@@ -31,7 +31,7 @@ class Electromagnet:
         self.d_z = d_z
         self.angle = angle
         self.n = n
-        self.r = r_in
+        self.r_in = r_in
         self.l_c = l_c
 
     ### adaptations of the Electromagnet's attributes ###
@@ -135,7 +135,7 @@ class Electromagnet:
         return n_d
 
     # define the dl: length of coil represented by an Electromagnet point
-    def get_dl(self, solenoid_point) -> float:
+    def get_dl(self, solenoid_point: ndarray) -> float:
         # rotate point back to where z is constant so that we can calc r with x, y coords
         coords = self.rotating_point_to_pos(solenoid_point, 'inverse')
         r = np.sqrt(coords[0] ** 2 + coords[1] ** 2)
@@ -156,7 +156,7 @@ class Electromagnet:
         return distance
 
     # rotating the preliminary position of the point according to the Electromagnet's position
-    def rotating_point_to_pos(self, point: list, mode: str) -> list:
+    def rotating_point_to_pos(self, point: ndarray, mode: str) -> ndarray:
         if mode == 'inverse': # if we want to angle to point back to where z is constant
             coordinates = rotate_vector(point, self.angle[0], -self.angle[1])
         elif mode == 'normal': # rotation to its position
@@ -177,14 +177,12 @@ class Electromagnet:
         y = r * np.sin(theta)
         z = d
 
-        # calculate the dl for future uses -> B-flux gen.
-        dl = self.get_dl(r)
         # saving the preliminary coords in list
-        point = [x, y, z]
+        point = np.array([x, y, z])
 
         # rotate point to position (pos)
         x, y, z = self.rotating_point_to_pos(point, 'normal')
-        return [x, y, z, dl]
+        return [x, y, z]
 
     # calculating / defining each points current vector
     def get_current_vector(self, theta: float) -> list:
@@ -194,7 +192,7 @@ class Electromagnet:
         z = 0
 
         # saving the preliminary vector in list
-        vector = [x, y, z]
+        vector = np.array([x, y, z])
 
         # rotate point to position (pos)
         v_x, v_y, v_z = self.rotating_point_to_pos(vector, 'normal')
@@ -206,7 +204,7 @@ class Electromagnet:
         r = self.varying_distance_calc(self.d_c, self.n_d, i, 'r')
 
         # defining the distance
-        d = self.varying_distance_calc(self.d, self.n_l, j, 'd')
+        d = self.varying_distance_calc(self.l_c, self.n_l, j, 'd') + self.d_z
 
         # defining the point in the loop
         theta = angle_calc(2 * np.pi, k, self.POINTS_PER_TURN)
