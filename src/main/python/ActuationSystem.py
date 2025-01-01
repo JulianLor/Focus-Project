@@ -168,7 +168,6 @@ class ActuationSystem:
         # if B-flux generated is within the bounds of the expected accuracy
         return True
 
-
     # based on the current: what is the B-flux generated at the Focus-Point
     def check_B_flux_gen_current(self, I: ndarray) -> ndarray:
         # calculate the B-flux generated based on the Electromagnet's position

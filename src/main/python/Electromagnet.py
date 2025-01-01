@@ -5,9 +5,6 @@ from config import mu_0
 
 class Electromagnet:
     # class level constants
-    N_TURNS         = 300        # Number of turns
-    RADIUS_IN       = 0.005      # Inner radius of the Electromagnet
-    LENGTH_C        = 0.005      # Length of the Electromagnet
     RADIUS_C        = 0.000675   # Radius of the cable
     ISOLATION_RATIO = 1.05       # the ratio of r(with isolation) / r(without isolation)
     DELTA           = 0.65       # linear factor of Reality/Biot-Savart Law
@@ -18,22 +15,24 @@ class Electromagnet:
 
     # class attributes types
     d_z:                float    # vertical distance from actuation system to Focus-point
-    angle:              list     # Relative orientation of the Electromagnet's
+    angle:              list     # Relative orientation of the Electromagnet's [axis, angle]
+    n:                  int      # Number of turns
+    r_in:               float    # Inner radius of the Electromagnet
+    l_c:                float    # Length of the Electromagnet
     d_c:                float    # Thickness of Electromagnet
     d:                  float    # Minimal distance to Focus-point
     n_l:                int      # Number of turns with equal r
-    n_d:                int      # Number of turns with equal d
+    n_d:                int      # Number of turns with equal
     current_vectors:    ndarray  # List of the Electromagnet's current vectors
     solenoid_points:    ndarray  # List of the Electromagnet's coordinates
     solenoid_current:   ndarray  # List of the Electromagnet's current
 
-    def __init__(self, d_z, angle):
+    def __init__(self, d_z, angle, n, r_in, l_c):
         self.d_z = d_z
         self.angle = angle
-        self.d_c = self.get_d_c()
-        self.d   = self.get_d()
-        self.n_l = self.get_n_l()
-        self.n_d = self.get_n_d()
+        self.n = n
+        self.r = r_in
+        self.l_c = l_c
 
     ### adaptations of the Electromagnet's attributes ###
 
@@ -45,7 +44,37 @@ class Electromagnet:
     def set_angle(self, angle: list):
         self.angle = angle
 
-    # adapt the Electromagnet's current
+    # adapt the Electromagnet's n
+    def set_n(self, n: int):
+        self.n = n
+
+    # adapt the Electromagnet's r_in
+    def set_r_in(self, r_in: float):
+        self.r_in = r_in
+
+    # adapt the Electromagnet's l-c
+    def set_l_c(self, l_c: float):
+        self.l_c = l_c
+
+    ### save key attributes of the Electromagnet ###
+
+    # set the Electromagnet's d_c
+    def set_d_c(self):
+        self.d_c = self.get_d_c()
+
+    # set the Electromagnet's d
+    def set_d(self):
+            self.d = self.get_d()
+
+    # set the Electromagnet's n_l
+    def set_n_l(self):
+            self.n_l = self.get_n_l()
+
+    # set the Electromagnet's n_d
+    def set_n_d(self):
+            self.n_d = self.get_n_d()
+
+    # set the Electromagnet's current
     def set_solenoid_current(self, current: float):
         self.solenoid_current = self.current_vectors * current
 
@@ -53,32 +82,32 @@ class Electromagnet:
 
     # thickness of Electromagnet
     def get_d_c(self) -> float:
-        d_c = (self.N_TURNS * np.pi * self.RADIUS_C ** 2) / (0.9 * self.LENGTH_C)
+        d_c = (self.n * np.pi * self.RADIUS_C ** 2) / (0.9 * self.l_c)
         return d_c
 
     # average radius of coil to Electromagnet's axis
     def get_r_hat(self) -> float:
-        r_hat = (0.5 * (self.RADIUS_IN ** 2 + (self.RADIUS_IN + self.d_c) ** 2)) ** (1 / 2)
+        r_hat = (0.5 * (self.r_in ** 2 + (self.r_in + self.d_c) ** 2)) ** (1 / 2)
         return r_hat
 
     # calculating the minimal distance to the Focus point
     def get_d(self) -> float:
-        d = (self.d_z / np.cos(np.pi / 6) + np.tan(np.pi / 6) * (self.RADIUS_IN + self.d_c))
+        d = (self.d_z / np.cos(np.pi / 6) + np.tan(np.pi / 6) * (self.r_in + self.d_c))
         return d
 
     # average distance to Focus-point
     def get_d_hat(self) -> float:
-        d_hat = (0.5 * (self.d ** 3 + (self.d + self.LENGTH_C) ** 3)) ** (1 / 3)
+        d_hat = (0.5 * (self.d ** 3 + (self.d + self.l_c) ** 3)) ** (1 / 3)
         return d_hat
 
     # length of cable wound on Electromagnet
     def get_cable_length(self) -> float:
-        length = self.N_TURNS * (2 * np.pi * (self.RADIUS_IN * 100 + self.d_c * 100 / 2))
+        length = self.n * (2 * np.pi * (self.r_in * 100 + self.d_c * 100 / 2))
         return length
 
     # volume of Electromagnet in cm^3 (calculated by the area * length)
     def get_volume_solenoid_area(self) -> float:
-        vol = self.LENGTH_C * 100 * np.pi * ((self.d_c * 100 + self.RADIUS_IN * 100) ** 2 - (self.RADIUS_IN * 100) ** 2)
+        vol = self.l_c * 100 * np.pi * ((self.d_c * 100 + self.r_in * 100) ** 2 - (self.r_in * 100) ** 2)
         return vol
 
     # volume of Electromagnet in cm^3 (calculated based on the total length of the coil)
@@ -88,21 +117,21 @@ class Electromagnet:
 
     # calculating the total points rendered for one Electromagnet
     def get_total_points(self) -> int:
-        total_points = self.N_TURNS * self.POINTS_PER_TURN
+        total_points = self.n * self.POINTS_PER_TURN
         return total_points
 
     # calculating how many turns have the same radius
     def get_n_l(self) -> int:
-        ratio = self.d_c / self.LENGTH_C # ratio of lengths of one area
+        ratio = self.d_c / self.l_c # ratio of lengths of one area
 
-        n_l = int(round(np.sqrt(self.N_TURNS / ratio), 0))  # amount of coils with equal r
+        n_l = int(round(np.sqrt(self.n / ratio), 0))  # amount of coils with equal r
         return n_l
 
     # calculating how many turns have the same d
     def get_n_d(self) -> int:
-        ratio = self.d_c / self.LENGTH_C  # ratio of lengths of one area
+        ratio = self.d_c / self.l_c  # ratio of lengths of one area
 
-        n_d = int(round(self.N_TURNS / int(round(np.sqrt(self.N_TURNS / ratio), 0)), 0)) # amount of coils with equal d
+        n_d = int(round(self.n / int(round(np.sqrt(self.n / ratio), 0)), 0)) # amount of coils with equal d
         return n_d
 
     # define the dl: length of coil represented by an Electromagnet point
@@ -119,9 +148,9 @@ class Electromagnet:
     # calculating the varying distance: most inner distance is offset by a cable radius (half a step)
     def varying_distance_calc(self, total: float, steps: int, i: int, mode: str) -> float:
         if mode == 'r':
-            base = self.RADIUS_IN
+            base = self.r_in
         else:
-            base = self.LENGTH_C
+            base = self.l_c
         distance = base + (i + 0.5) * (total / steps)
 
         return distance
@@ -282,7 +311,7 @@ class Electromagnet:
 
     # calculate the Electromagnet's inductance (mu_0 * A * N^2 / l)
     def get_inductance(self) -> float:
-        L = mu_0 * np.pi * (self.RADIUS_IN + self.d_c) ** 2 * self.N_TURNS ** 2 / self.LENGTH_C
+        L = mu_0 * np.pi * (self.r_in + self.d_c) ** 2 * self.n ** 2 / self.l_c
         return L
 
     # get the Electromagnet's impedance
