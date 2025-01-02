@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 from numpy.ma.testutils import assert_array_almost_equal
-
 from src.main.python.Electromagnet import Electromagnet
+from src.main.python.Helper_functions import Biot_Savart_Law
 
 class TestElectromagnet(unittest.TestCase):
 
@@ -86,3 +86,37 @@ class TestElectromagnet(unittest.TestCase):
         prediction = list(test.rotating_point_to_pos(np.array([-1 / 2, np.sqrt(3) / 2, 0]), 'normal'))
         assert_array_almost_equal(result, prediction)
 
+    # testing if the point parameters are returned correctly
+    def test_get_point_parameters(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_point_parameters(5, 5, 5)
+
+        # check result with predicted result
+        prediction = [test.varying_distance_calc(test.d_c, test.get_n_d(), 5, 'r'),
+                      np.pi / 5,
+                      test.varying_distance_calc(test.l_c, test.get_n_l(), 5, 'd') + test.d_z]
+        assert_array_almost_equal(np.array(result), np.array(prediction))
+
+    # testing if the looping over the electromagnet works
+    def test_get_solenoid_point_coords_shape(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_solenoid_point_coords()
+
+        # check result with predicted result
+        prediction = np.zeros((test.get_total_points(), 3))
+        assert_array_almost_equal(result.shape, prediction.shape)
+
+    # testing if the B-flux is correctly calculated
+    def test_get_B_flux(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', 0], 350, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_B_flux(np.array([1, 0, 0]), np.array([1, 0, 1]), np.array([0, 1, 0]))
+
+        # check result with predicted result
+        prediction = test.DELTA * Biot_Savart_Law(np.array([0,0,-1]), np.array([0, 1, 0]), 2 * np.pi / test.POINTS_PER_TURN)
+        assert_array_almost_equal(result.shape, prediction.shape)

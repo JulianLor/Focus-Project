@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from numpy import ndarray
 from config import mu_0
@@ -83,7 +84,7 @@ class PermanentMagnet:
             return int(n)
         else:
             print('FEM dimensions do not work out')
-            exit()
+            sys.exit()
 
     # create the FEM magnet centers
     def divide_magnet(self) -> ndarray:
@@ -98,10 +99,10 @@ class PermanentMagnet:
         z_vals = np.arange(magnet_min[2], magnet_max[2], self.CUBE_SIZE)
 
         # Create a grid of all cube centers within the magnet volume
-        canc_cube_centers = np.array(np.meshgrid(x_vals, y_vals, z_vals,
+        cube_centers = np.array(np.meshgrid(x_vals, y_vals, z_vals,
                                                  indexing='ij')).T.reshape(-1, 3)
 
-        return canc_cube_centers
+        return cube_centers
 
     # calculate the magnetisation of the magnet
     def magnetisation_calc(self, mode: str) -> ndarray:
@@ -112,7 +113,7 @@ class PermanentMagnet:
             vol = self.get_volume_magnet()
         else:
             print('Invalid mode')
-            exit()
+            sys.exit()
 
         # multiply the volume with the moment vector given by method
         magnetisation = vol * self.get_moment_vector()
