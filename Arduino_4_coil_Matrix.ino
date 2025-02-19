@@ -91,10 +91,10 @@ void loop() {
     float y = sin(Hz * t * 2 * PI);
     float z = 0;
 
-    float direction[3] = {x, y, z}
+    float direction[3] = {x, y, z};
 
-    float vector[3]
-    float current[4]
+    float vector[3];
+    float current[4];
 
     // x-axis rot
     if (t_state < rot_freq / 3) {
@@ -114,11 +114,11 @@ void loop() {
         MatrixMultiplication(vector, current);
     }
 
-    float current1, current2, current3, current4
-    current1 = current[0]
-    current2 = current[1]
-    current3 = current[2]
-    current4 = current[4]
+    float current1, current2, current3, current4;
+    current1 = current[0];
+    current2 = current[1];
+    current3 = current[2];
+    current4 = current[4];
 
     int pwmPinINA1_val, pwmPinINB1_val, pwmPinINA2_val, pwmPinINB2_val, pwmPinINA3_val, pwmPinINB3_val, pwmPinINA4_val, pwmPinINB4_val;
 
