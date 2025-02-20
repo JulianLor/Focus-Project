@@ -96,3 +96,29 @@ def Lorentz_force(I: float, dl: ndarray, B: ndarray) -> ndarray:
 def get_time_steps(duration: int, fps: int) -> ndarray:
     t = np.linspace(0, duration, fps)
     return t
+
+# return the inverse matrix (either directly or via SVD)
+def get_inverse(M: ndarray) -> ndarray:
+    # return inverse if Matrix is squared
+    if M.shape[0] == M.shape[1]:
+        return np.linalg.inv(M)
+    # return inverse by SVD if Matrix is rectangular
+    else:
+        return get_pseudoinverse(M)
+
+# get the pseudo inverse of a given invertible or rectangular Matrix M
+def get_pseudoinverse(M: ndarray) -> ndarray:
+    # get the left singular matrix, the diagonal singular matrix and the transposed right singular matrix
+    U, S, Vt = calc_SVD(M)
+    # Compute the pseudoinverse of the diagonal matrix S
+    S_inv = np.diag(1 / S[S > 1e-10])  # Avoid division by zero for small singular values
+
+    # Compute the pseudoinverse A+
+    M_inv = Vt.T[:, :S_inv.shape[0]] @ S_inv @ U.T[:S_inv.shape[0], :]
+
+    return M_inv
+
+# calculate the singular value decomposition Matrices of a given Matrix
+def calc_SVD(M: ndarray) -> ndarray:
+    U, S, Vt = np.linalg.svd(M, full_matrices=True)
+    return np.array([U, S, Vt])

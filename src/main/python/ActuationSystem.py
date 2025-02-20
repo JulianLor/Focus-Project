@@ -1,8 +1,8 @@
 import numpy as np
 from numpy import ndarray
-from Helper_functions import get_time_steps
+from Helper_functions import get_time_steps, get_inverse
 from config import fps
-
+from src.main.python.Helper_functions import rotate_vector
 
 class ActuationSystem:
     # class level constants
@@ -11,7 +11,6 @@ class ActuationSystem:
     VOLUME =               0.02 ** 3    # Working volume
     LIM_N_ElectroMagnet =  4            # Limit of Electromagnets
     LIM_N_PermMagnet =     8            # Limit of Permanent Magnets
-    LIM_SIGMA =            0.2          # Lower limit of Sigma
     DURATION =             10           # Duration of the simulation
     ACCURACY =             0.0001       # Accuracy of the B-flux generation
 
@@ -20,16 +19,14 @@ class ActuationSystem:
     N_PermMagnet:          int          # Number of Permanent Magnets
     pos_ElectroMagnet:     list         # Electromagnets' position
     pos_PermMagnet:        list         # Permanent magnets' position
-    Sigma:                 float        # duration for the rot. axis to return to original axis
     Volume:                float        # Working space volume
     Matrix:                ndarray      # Transformation Matrix (M * B = I)
 
-    def __init__(self, N_ElectroMagnet, N_PermMagnet, pos_ElectroMagnet, pos_PermMagnet, Sigma):
+    def __init__(self, N_ElectroMagnet, N_PermMagnet, pos_ElectroMagnet, pos_PermMagnet):
         self.N_ElectroMagnet = N_ElectroMagnet
         self.N_PermMagnet = N_PermMagnet
         self.pos_ElectroMagnet = pos_ElectroMagnet
         self.pos_PermMagnet = pos_PermMagnet
-        self.Sigma = Sigma
 
     ### adapt the Actuation System's attributes ###
 
@@ -49,36 +46,7 @@ class ActuationSystem:
     def set_pos_PermMagnet(self, pos_PermMagnet: list):
         self.pos_PermMagnet = pos_PermMagnet
 
-    # adapt the Actuation System's Sigma (ratio of RMF axis)
-    def set_Sigma(self, Sigma: float):
-        self.Sigma = Sigma
-
-    ### check validity of attributes ###
-    def check_validity(self) -> bool:
-        if self.N_ElectroMagnet == 0 or self.N_PermMagnet > self.LIM_N_ElectroMagnet: # check Number of Electromagnets
-            print('Number of Electromagnets invalid')
-            return False
-        elif self.N_PermMagnet == 0 or self.N_PermMagnet > self.LIM_N_PermMagnet: # check Number of magnets
-            print('Number of Permanent Magnets invalid')
-            return False
-        elif self.Sigma < self.get_sigma_min() or self.Sigma > 1: # sigma can not be higher than 1: short/long axis
-            print('Sigma invalid')
-            return False
-        # if all the input is valid
-        return True
-
-    # calculate the length of the minimal B-field generated (short axis)
-    def get_sigma_min(self) -> float:
-        # calculate the B-flux ellipsoid's radii (short and long one)
-        r_short = 2 * np.sin(self.pos_ElectroMagnet[1])
-        r_long = 4 * np.cos(self.pos_ElectroMagnet[1])
-        # sigma defined as short axis / long axis
-        sigma_min = r_short / r_long
-        if sigma_min < self.LIM_SIGMA:
-            return self.LIM_SIGMA
-        return sigma_min
-
-    ### defining B-flux shape / direction for the Actuation System's ###
+    ### defining B-flux shape / direction for the Actuation System's flux gen ###
 
     # calculate and store the wanted B-flux at the Focus-Point for the duration of the simulation
     def get_B_flux_direction_sim(self) -> ndarray:
@@ -90,37 +58,49 @@ class ActuationSystem:
 
         return B_direction
 
-    # get the B-flux direction at the Focus-Point for a certain time point
+    # define the desired flux direction at a certain time point
     def get_B_flux_direction(self, t: float) -> ndarray:
-        t_state, cycle, offset = self.get_B_flux_direction_var(t) # get the variables on the rotation's status
+        v_rot = self.get_rotation(t) # get the vector direction of the rotation
+        axis, theta = self.get_rotation_state(t) # get the current state of the rotation of the RMF
+        B_direction = rotate_vector(v_rot, axis, theta) # transform the vector to its desired position dependent on its state
 
-        phi = (2 * np.pi * t) * self.FREQ # defining the w for the main rotation
-        psi = (np.pi / 2) * (t_state % (self.PERIOD / 3)) # defining the w for the rotation of the rot. axis
-
-        # setting the base currents for the rotation
-        x = np.cos(phi + offset)
-        y = np.sin(phi + offset)
-        z = -np.sin(psi + offset)
-
-        if t < self.PERIOD / 3:
-            y *= np.cos(psi)
-            z *= np.sin(psi)
-        elif t < (2 * self.PERIOD) / 3:
-            x *= np.cos(psi)
-            y *= np.sin(psi)
-        else:
-            x *= np.sin(psi)
-            z *= np.cos(psi)
-
-        B_direction = np.array([x,y,z])
         return B_direction
 
-    # get the variables to define the rotation's status
-    def get_B_flux_direction_var(self, t: float) -> tuple:
-        t_state = t % self.PERIOD  # define the time point within the period of rotation
-        cycle = int((t - t_state) / self.PERIOD)  # how often has a period been
-        offset = cycle * np.pi / 2  # describing the offset for the sinusoidal functions
-        return t_state, cycle, offset
+    # define the rotation of defined angular velocity
+    def get_rotation(self, t: float) -> ndarray:
+        x = np.sin(2 * np.pi * self.FREQ * t)
+        y = np.cos(2 * np.pi * self.FREQ * t)
+        # define circular motion in xy plane with set angular velocity and return said values
+        return np.array([x, y, 0])
+
+    # get the all the times variables
+    def get_state_variables(self, t: float) -> tuple:
+        t_state = t % self.PERIOD # time of in rotation cycle
+        t_period = (t_state % (self.PERIOD / 3)) # time of single axis rotation
+
+        return t_state, t_period
+
+    # get the currents rotation state (meaning the current orientation of the axis of rotation)
+    def get_rotation_state(self, t: float) -> tuple:
+        # get the currents state's time variables
+        t_state, t_period = self.get_state_variables(t)
+        # defining the angle of the transformation matrix to the main rotation vector
+        theta = (np.pi / 2) * (t_period / (self.PERIOD / 3))  # angle of rotation axis rotation
+        # get the current axis around which the axis of rotation rotates
+        axis = self.get_state_axis(t_state, t_period)
+
+        return axis, theta
+
+    # get the current axis of rotation for the rotation of the rotation axis
+    def get_state_axis(self, t_state: float, t_period: float) -> str:
+        if t_state - t_period == 0:
+            axis = 'y'  # the axis of rotation moves from the z to the x-axis during the first third of a period
+        elif t_state - t_period <= self.PERIOD / 3:
+            axis = 'z'  # the axis of rotation moves from the x to the y-axis during the second third of a period
+        else:
+            axis = 'x'  # the axis of rotation moves from the y to the z-axis during the last third of a period
+
+        return axis
 
     ### Converting the expected B-flux at Focus-Point into Current for Electromagnets ###
 
@@ -140,13 +120,15 @@ class ActuationSystem:
 
     # set the Matrix to get the currents based on the expected B-flux at the Focus-Point
     def set_transformation_Matrix(self):
-        # get the angle by which the Electromagnets are rotated away from the z axis
-        angle = self.pos_ElectroMagnet[1]
-        # calculate alpha for the vertical axis mag = 1
-        alpha = 1 / (4 * np.cos(angle) * self.Sigma)
-        # calculate and set the transformation Matrix
-        self.Matrix = np.array([[1, 0, alpha], [-1, 0, alpha],
-                           [0, 1, alpha], [0, -1, alpha]])
+        # Based on the assumption that M x I = B, we want to find the pseudo-inverse M+ so that M+ x B = I
+        a = np.sin(self.pos_ElectroMagnet[1]) # vector composition of B-flux single electromagnet
+        b = np.cos(self.pos_ElectroMagnet[1])
+        # define the transformation matrix based on the electromagnets relative position
+        M = np.array([[a, -a, 0, 0],
+                      [0, 0, a, -a],
+                      [b, b, b, b]])
+        # get the pseudo-inverse Matrix by Singular Value Decomposition
+        self.Matrix = get_inverse(M)
 
     # calculate the required current for the expected B-flux at the focus point
     def get_B_flux_gen_current(self, B_direction: ndarray) -> ndarray:
@@ -154,26 +136,4 @@ class ActuationSystem:
         B = B_direction.reshape(3,1)
         # get 4,1 vector for the currents
         I = np.dot(self.Matrix, B)
-
-        if self.check_B_flux_gen(I, B_direction): # check validity of result
-            return I
-
-    # check whether the generated currents generate the right B-flux
-    def check_B_flux_gen(self, I: ndarray, B_direction: ndarray) -> bool:
-        B_new = self.check_B_flux_gen_current(I) # get generated B-flux
-        for index in range(3): # check each coordinate for precision
-            diff = float(B_new[index] - B_direction[index]) # difference between expected and gen.
-            if diff < -self.ACCURACY or diff > self.ACCURACY: # if precision error is overstepped -> false
-                return False
-        # if B-flux generated is within the bounds of the expected accuracy
-        return True
-
-    # based on the current: what is the B-flux generated at the Focus-Point
-    def check_B_flux_gen_current(self, I: ndarray) -> ndarray:
-        # calculate the B-flux generated based on the Electromagnet's position
-        B_x = np.sin(self.pos_ElectroMagnet[1]) * (I[0] - I[1])
-        B_y = np.sin(self.pos_ElectroMagnet[1]) * (I[2] - I[3])
-        B_z = np.cos(self.pos_ElectroMagnet[1]) * (I[0] + I[1] + I[2] + I[3])
-        # create flux vector based on the current
-        B = np.array([B_x, B_y, B_z])
-        return B
+        return I

@@ -77,7 +77,7 @@ def run_optimisation_calc():
     constraints = {'type': 'eq', 'fun': equality_constraint}  # Equality constraint
 
     # Initial guess for x and y
-    initial_guess = np.array([0.0006, 0.005, 300, 0.005])
+    initial_guess = np.array([0.06, 0.5, 300, 0.5])
 
     # Solve the problem
     result = minimize(objective, initial_guess, method='SLSQP', bounds=bounds, constraints=constraints)
