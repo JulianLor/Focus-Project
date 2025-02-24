@@ -28,7 +28,7 @@ class Electromagnet:
     solenoid_points:    ndarray  # List of the Electromagnet's coordinates
     solenoid_current:   ndarray  # List of the Electromagnet's current
 
-    def __init__(self, d_z, angle, n, r_in, l_c):
+    def __init__(self, d_z: float, angle: list, n: int, r_in: float, l_c: float):
         self.d_z = d_z
         self.angle = angle
         self.n = n
