@@ -11,7 +11,7 @@ const float M[4][3] = {
     {-1/(2 * sin(phi)), 0, 1/(4 * cos(phi))},
     {0, 1/(2 * sin(phi)), 1/(4 * cos(phi))},
     {0, -1/(2 * sin(phi)), 1/(4 * cos(phi))}
-    };
+  };
 
 // H-bridge PWM pins for each coil
 const int pwmPin1A = 10, pwmPinINA1 = 12, pwmPinINB1 = 9;
@@ -81,49 +81,42 @@ void rotateVector(float vector[3], char axis, float theta, float result[3]) {
     }
 }
 
-void loop() {
-    float t = millis() / 1000.0; // Time in seconds
-    float t_state = fmod(t, rot_freq);
+void get_t_variables(float t, float t_state, float theta) {
+    t_state = fmod(t, rot_freq);
     float t_theta = fmod(t_state, rot_freq / 3);
-    float theta = t_theta * PI / (2 * rot_freq / 3);
+    theta = t_theta * PI / (2 * rot_freq / 3);
+}
 
+void get_v_rot(float v_rot[3], float t) {
     float x = sin(Hz * t * 2 * PI);
     float y = sin(Hz * t * 2 * PI);
     float z = 0;
 
-    float direction[3] = {x, y, z};
+    v_rot[3] = {x, y, z};
+}
 
-    float vector[3];
-    float current[4];
-
-    // x-axis rot
+void get_b_vec(float v_rot[3], float t_state, float b_vec[3]) {
+    // axis of rotation sweeps from z to x axis by pi/2
     if (t_state < rot_freq / 3) {
-        rotateVector(direction, 'x', theta, vector);
-        MatrixMultiplication(vector, current);
+        rotateVector(direction, 'y', theta, b_vec);
     }
 
-    // y-axis rot
+    // axis of rotation sweeps from x to y axis by pi/2
     else if (t_state < (2 * rot_freq / 3)) {
-        rotateVector(direction, 'y', theta, vector);
-        MatrixMultiplication(vector, current);
+        rotateVector(direction, 'z', theta, b_vec);
     }
 
-    // z-xis rot
+    // axis of rotation sweeps from x to y axis by pi/2
     else {
-        rotateVector(direction, 'z', theta, vector);
-        MatrixMultiplication(vector, current);
+        rotateVector(direction, 'x', theta, b_vec);
     }
+}
 
-    float current1, current2, current3, current4;
-    current1 = current[0];
-    current2 = current[1];
-    current3 = current[2];
-    current4 = current[4];
-
+void IN_pins(float current[4]) {
     int pwmPinINA1_val, pwmPinINB1_val, pwmPinINA2_val, pwmPinINB2_val, pwmPinINA3_val, pwmPinINB3_val, pwmPinINA4_val, pwmPinINB4_val;
 
     // Enabler pins for Coil 1 
-    if (current1 < 0) {
+    if (current[0] < 0) {
         pwmPinINA1_val = HIGH;
         pwmPinINB1_val = LOW;
     }
@@ -133,7 +126,7 @@ void loop() {
     }
 
     // Enabler pins for Coil 2
-    if (current2 < 0) {
+    if (current[1] < 0) {
         pwmPinINA2_val = HIGH;
         pwmPinINB2_val = LOW;
     }
@@ -143,7 +136,7 @@ void loop() {
     }
 
     // Enabler pins for Coil 3
-    if (current3 < 0) {
+    if (current[2] < 0) {
         pwmPinINA3_val = HIGH;
         pwmPinINB3_val = LOW;
     }
@@ -153,7 +146,7 @@ void loop() {
     }
 
     // Enabler pins for Coil 4
-    if (current4 < 0) {
+    if (current[3] < 0) {
         pwmPinINA4_val = HIGH;
         pwmPinINB4_val = LOW;
     }
@@ -173,31 +166,62 @@ void loop() {
 
     digitalWrite(pwmPinINA4, pwmPinINA4_val);
     digitalWrite(pwmPinINB4, pwmPinINB4_val);
+}
 
-    float current1_abs = abs(current1);
-    float current2_abs = abs(current2);
-    float current3_abs = abs(current3);
-    float current4_abs = abs(current4);
+void abs_val_current(float current[4], float current_abs[4]) {
+    float current_abs[0] = abs(current[0]);
+    float current_abs[1] = abs(current[1]);
+    float current_abs[2] = abs(current[2]);
+    float current_abs[3] = abs(current[3]);
+}
 
+void print_current(float current[4]) {
     Serial.print("Current1 output:");
-    Serial.println(current1);
+    Serial.println(current[0]);
     Serial.print("Current2 output:");
-    Serial.println(current2);
+    Serial.println(current[1]);
     Serial.print("Current3 output:");
-    Serial.println(current3);
+    Serial.println(current3[2];
     Serial.print("Current4 output:");
-    Serial.println(current4); 
+    Serial.println(current[3]);
+}
 
-    int pwmValue1 = int(current1_abs * I_max); // Scale sine to 0-255
-    int pwmValue2 = int(current2_abs * I_max); // Scale cosine to 0-255
-    int pwmValue3 = int(current3_abs * I_max); // Scale sine to 0-255
-    int pwmValue4 = int(current4_abs * I_max); // Scale cosine to 0-255
+void PWM_pins(float current_abs[4]) {
+    int pwmValue1 = int(current_abs[0] * I_max); // Scale sine to 0-255
+    int pwmValue2 = int(current_abs[1] * I_max); // Scale cosine to 0-255
+    int pwmValue3 = int(current_abs[2] * I_max); // Scale sine to 0-255
+    int pwmValue4 = int(current_abs[3] * I_max); // Scale cosine to 0-255
 
     analogWrite(pwmPin1A, pwmValue1);  
     analogWrite(pwmPin2A, pwmValue2);
     analogWrite(pwmPin3A, pwmValue3);  
     analogWrite(pwmPin4A, pwmValue4);
-      
-    delay(10);  // Short delay to manage loop frequency
+}
+
+void loop() {
+    float t = millis() / 1000.0; // Time in seconds
+    
+    float t_state, theta;
+    get_t_variables(t, theta);
+
+    float v_rot[3];
+    get_v_rot(v_rot, t);
+
+    float v_rot[3], b_vec[3];
+    get_b_vec(v_rot[3], t_state, b_vec);
+
+    float current[4]
+    MatrixMultiplication(b_vec, current);
+
+    IN_pins(current);
+
+    float current_abs[4];
+    abs_val_current(current, current_abs);
+
+    print_current(current);
+
+    PWM_pins(current_abs[4]);
+
+    delay(5);  // Short delay to manage loop frequency
   }
   
