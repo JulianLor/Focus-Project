@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from numpy.ma.testutils import assert_array_almost_equal
 from src.main.python.Electromagnet import Electromagnet
-from src.main.python.Helper_functions import Biot_Savart_Law
+from src.main.python.Helper_functions import Biot_Savart_Law, Lorentz_force
 
 class TestElectromagnet(unittest.TestCase):
 
@@ -52,6 +52,18 @@ class TestElectromagnet(unittest.TestCase):
         # check result with predicted result
         prediction = np.array([np.sqrt(2) / 2, 0, np.sqrt(2) / 2])
         assert_array_almost_equal(result, prediction)
+
+    # testing if the system exit is triggered for rotating_point_to_pos function
+    def test_rotating_point_to_pos_2(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+
+        # check if system exit is triggered
+        with self.assertRaises(SystemExit) as cm: # Should trigger sys.exit()
+            test.rotating_point_to_pos(np.array([0, 0]), 'test')
+
+        # Check exit code
+        self.assertEqual(cm.exception.code, None)
 
     # testing if the representative length of Electromagnet point is correct
     def test_get_dl(self):
@@ -132,4 +144,28 @@ class TestElectromagnet(unittest.TestCase):
 
         # check result with predicted result
         prediction = test.POINTS_PER_TURN * test.get_B_flux(np.array([0,0,0]), np.array([0.5,0,0]), np.array([0,1,0]))
+        assert_array_almost_equal(result.shape, prediction.shape)
+
+    # testing if the system exit is triggered for get_solenoid_B_flux function
+    def test_get_solenoid_B_flux_2(self):
+        # setup test instance
+        test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+
+        # check if system exit is triggered
+        with self.assertRaises(SystemExit) as cm:
+            test.get_solenoid_B_flux(np.array([0,0,0]))  # Should trigger sys.exit()
+
+        # Check exit code
+        self.assertEqual(cm.exception.code, None)
+
+    def test_lorentz_force_calc(self):
+        # setup test instance
+        test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+        # set the test-electromagnets current to 1 A
+        test.set_solenoid_current(1)
+        # get the result that is being verified
+        result = test.lorentz_force_calc(np.array([0, 0, 0]), np.array([0,1,0]), 0.01)
+
+        # check result with predicted result
+        prediction = Lorentz_force(1, np.array([0,0.01,0]), test.get_solenoid_B_flux(np.array([0, 0, 0])))
         assert_array_almost_equal(result.shape, prediction.shape)
