@@ -8,7 +8,6 @@ class ActuationSystem:
     # class level constants
     FREQ =                 5            # Frequency of rotation
     PERIOD =               60           # Period of rotational axis rotation
-    VOLUME =               0.02 ** 3    # Working volume
     LIM_N_ElectroMagnet =  4            # Limit of Electromagnets
     LIM_N_PermMagnet =     8            # Limit of Permanent Magnets
     DURATION =             10           # Duration of the simulation

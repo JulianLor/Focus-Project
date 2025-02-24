@@ -119,6 +119,6 @@ def get_pseudoinverse(M: ndarray) -> ndarray:
     return M_inv
 
 # calculate the singular value decomposition Matrices of a given Matrix
-def calc_SVD(M: ndarray) -> ndarray:
+def calc_SVD(M: ndarray) -> tuple:
     U, S, Vt = np.linalg.svd(M, full_matrices=True)
-    return np.array([U, S, Vt])
+    return U, S, Vt

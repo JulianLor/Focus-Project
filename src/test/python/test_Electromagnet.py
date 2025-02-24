@@ -110,7 +110,7 @@ class TestElectromagnet(unittest.TestCase):
         prediction = np.zeros((test.get_total_points(), 3))
         assert_array_almost_equal(result.shape, prediction.shape)
 
-    # testing if the B-flux is correctly calculated
+    # testing if the B-flux is correctly calculated for single point of electromagnet
     def test_get_B_flux(self):
         # setup test instance
         test = Electromagnet(0.01, ['y', 0], 350, 0.005, 0.01)
@@ -118,5 +118,18 @@ class TestElectromagnet(unittest.TestCase):
         result = test.get_B_flux(np.array([1, 0, 0]), np.array([1, 0, 1]), np.array([0, 1, 0]))
 
         # check result with predicted result
-        prediction = test.DELTA * Biot_Savart_Law(np.array([0,0,-1]), np.array([0, 1, 0]), 2 * np.pi / test.POINTS_PER_TURN)
+        prediction = test.DELTA * Biot_Savart_Law(np.array([0,0,-1]), np.array([0,1,0]), 2 * np.pi / test.POINTS_PER_TURN)
+        assert_array_almost_equal(result.shape, prediction.shape)
+
+    # testing if the B-flux is correctly calculated for the entire electromagnet
+    def test_get_solenoid_B_flux(self):
+        # setup test instance
+        test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+        # set the test-electromagnets current to 1 A
+        test.set_solenoid_current(1)
+        # get the result that is being verified
+        result = test.get_solenoid_B_flux(np.array([0,0,0]))
+
+        # check result with predicted result
+        prediction = test.POINTS_PER_TURN * test.get_B_flux(np.array([0,0,0]), np.array([0.5,0,0]), np.array([0,1,0]))
         assert_array_almost_equal(result.shape, prediction.shape)
