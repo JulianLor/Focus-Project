@@ -12,7 +12,7 @@ class PermanentMagnet:
     pos:                list     # position of the magnets center
     magnet_moment:      float    # magnet moment magnitude (standard is +z)
     magnet_dim:         ndarray  # magnet dimensions (split into x,y,z dim)
-    angle:              list     # position of magnet: axis of rot, angle
+    angle:              list     # position of magnet: [axis of rot, angle]
     magnetisation:      ndarray  # magnetisation vector of the entire magnet
     cube_size:          float    # minimal size of the FEM magnets
     FEM_magnetisation:  ndarray  # magnetisation vector of an FEM magnet
@@ -45,6 +45,8 @@ class PermanentMagnet:
     # adapt the magnet's FEM cube size
     def set_cube_size(self, cube_size: float):
         self.cube_size = cube_size
+        # update the magnetisation according to the new cube size
+        self.set_magnetisation()
 
     ### get parameters of the permanent magnet ###
 
@@ -87,8 +89,8 @@ class PermanentMagnet:
 
     # check existence of instances' attribute
     def check_attrib(self, atr_name: str) -> bool:
-            boolean = hasattr(self, atr_name)  # assess whether the attribute of this instance is defined
-            return boolean
+        boolean = hasattr(self, atr_name)  # assess whether the attribute of this instance is defined
+        return boolean
 
     ### FEM setup for the permanent magnet ###
 

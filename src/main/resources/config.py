@@ -39,6 +39,6 @@ cube_size = 0.001
 # Constants Canc. field
 canc_vert_distance = 0.14 # vertical distance to origin / focus point from lower end of magnet
 canc_hor_distance = 0.35 # distance between magnets (the end to end distance)
-canc_magnet_dimensions = np.array([0.08, 0.08, 0.02]) # size and shape of the perm. magnet
+canc_magnet_dimensions = np.array([0.07, 0.03, 0.01]) # size and shape of the perm. magnet
 canc_magnet_moment = np.array([0, 0, -1.45/mu_0]) # Magnetization of magnet
 canc_cube_size = 0.01 # FEM smallest magnet size

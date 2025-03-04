@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from mayavi import mlab
 from config import canc_hor_distance, canc_vert_distance, canc_magnet_dimensions, canc_magnet_moment, canc_cube_size, \
     mu_0, Grid_density, Grid_size, output_folder
+from Helper_functions import create_r_vector
 
 
 def cancellation_field():
@@ -13,6 +14,8 @@ def cancellation_field():
 
     numb_cubes = int(np.prod(canc_magnet_dimensions / canc_cube_size))
     # define the initial centers of all magnets
+    d1 = canc_hor_distance/2 + (canc_magnet_dimensions[0] / 2)
+    d2 = canc_vert_distance + (canc_magnet_dimensions[2] / 2)
     canc_magnet_centers = np.array([[0, canc_hor_distance/2 + (canc_magnet_dimensions[0] / 2), canc_vert_distance + (canc_magnet_dimensions[2] / 2)],
                                     [0, -canc_hor_distance/2 - (canc_magnet_dimensions[0] / 2), canc_vert_distance + (canc_magnet_dimensions[2] / 2)],
                                     [canc_hor_distance/2 + (canc_magnet_dimensions[0] / 2), 0, canc_vert_distance + (canc_magnet_dimensions[2] / 2)],
@@ -286,3 +289,23 @@ def force_on_dipole(m, B_grad):
     #Calculate force based on Gradient of B and the magnetisation vector of the magnet
     force = np.dot(m, B_grad)
     return force
+
+m = canc_magnet_moment * canc_magnet_dimensions[0] * canc_magnet_dimensions[1] * canc_magnet_dimensions[2]
+
+d1 = canc_vert_distance + (canc_magnet_dimensions[2] / 2)
+d2 = canc_hor_distance/2 + (canc_magnet_dimensions[0] / 2)
+a = np.sqrt(2) / 2
+cube_centers = np.array([[d2, 0, d1],
+                         [a*d2, a*d2, d1],
+                         [0, d2, d1],
+                         [-a*d2, a*d2, d1],
+                         [-d2, 0, d1],
+                         [-a*d2, -a*d2, d1],
+                         [0,-d2, d1],
+                         [a*d2, -a*d2, d1],])
+B_grad = 0
+for i in range(7):
+    r = create_r_vector(cube_centers[i + 1], cube_centers[0])
+    B_grad += magnetic_dipole_gradient(m, r)
+force = force_on_dipole(m, B_grad)
+print(force)

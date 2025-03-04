@@ -16,7 +16,7 @@ class Electromagnet:
 
     # class attributes types
     d_z:                float    # vertical distance from actuation system to Focus-point
-    angle:              list     # Relative orientation of the Electromagnet's [axis, angle]
+    angle:              list     # Relative orientation of the Electromagnet's: [axis of rot, angle]
     n:                  int      # Number of turns
     r_in:               float    # Inner radius of the Electromagnet
     l_c:                float    # Length of the Electromagnet
