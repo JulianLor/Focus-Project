@@ -122,3 +122,7 @@ def get_pseudoinverse(M: ndarray) -> ndarray:
 def calc_SVD(M: ndarray) -> tuple:
     U, S, Vt = np.linalg.svd(M, full_matrices=True)
     return U, S, Vt
+
+# area of ellipse
+def area_ellipse(a: float, b: float) -> float:
+    return a * b * np.pi
