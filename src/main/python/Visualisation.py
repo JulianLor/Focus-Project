@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import ndarray
 import matplotlib.pyplot as plt
-import os
+import os, vtk
 from PIL import Image
 from mayavi import mlab
 
@@ -79,3 +79,60 @@ def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
     # Verify the saved image size
     image = Image.open(frame_filename)
     print(f"Frame {step} saved with dimensions: {image.size}")
+
+# plot rotating volume
+def display_boolean_volume(X: ndarray, Y: ndarray, Z: ndarray, boolean_mask: ndarray):
+    """
+    Visualizes a 3D boolean mask using VTK.
+
+    Parameters:
+        X, Y, Z (numpy arrays): The meshgrid coordinates.
+        boolean_mask (numpy array): A 3D boolean mask (same shape as X, Y, Z).
+    """
+    # Create a vtkImageData object
+    image_data = vtk.vtkImageData()
+    dims = boolean_mask.shape  # Get dimensions of the data
+    image_data.SetDimensions(dims)
+    image_data.SetSpacing(X[1, 0, 0] - X[0, 0, 0], Y[0, 1, 0] - Y[0, 0, 0], Z[0, 0, 1] - Z[0, 0, 0])
+
+    # Create a scalar array to store the boolean values (convert to int for VTK)
+    scalars = vtk.vtkUnsignedCharArray()
+    scalars.SetNumberOfComponents(1)
+    scalars.SetName("BooleanMask")
+
+    # Flatten the data and insert into VTK format
+    for value in boolean_mask.ravel():
+        scalars.InsertNextValue(int(value))  # Convert bool to int (0 or 1)
+
+    # Attach scalars to the image data
+    image_data.GetPointData().SetScalars(scalars)
+
+    # Apply Thresholding to extract 'True' values
+    threshold = vtk.vtkThreshold()
+    threshold.SetInputData(image_data)
+    threshold.ThresholdByUpper(0.5)  # Keep values > 0.5 (True regions)
+
+    # Convert thresholded data into a surface representation
+    geometry_filter = vtk.vtkGeometryFilter()
+    geometry_filter.SetInputConnection(threshold.GetOutputPort())
+
+    # Create a mapper and actor
+    mapper = vtk.vtkPolyDataMapper()
+    mapper.SetInputConnection(geometry_filter.GetOutputPort())
+
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
+    actor.GetProperty().SetColor(1.0, 0.0, 0.0)  # Red color for True regions
+
+    # Create a renderer, render window, and interactor
+    renderer = vtk.vtkRenderer()
+    render_window = vtk.vtkRenderWindow()
+    render_window.AddRenderer(renderer)
+    interactor = vtk.vtkRenderWindowInteractor()
+    interactor.SetRenderWindow(render_window)
+
+    # Add the actor and start rendering
+    renderer.AddActor(actor)
+    renderer.SetBackground(0.1, 0.1, 0.1)  # Dark background
+    render_window.Render()
+    interactor.Start()
