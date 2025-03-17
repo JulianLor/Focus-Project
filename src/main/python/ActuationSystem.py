@@ -2,10 +2,10 @@ import sys
 
 import numpy as np
 from numpy import ndarray
-from Helper_functions import get_time_steps, get_inverse
+from src.main.python.Helper_functions import get_time_steps, get_inverse
 from config import fps, density, offset, distance
 from src.main.python.Electromagnet import Electromagnet
-from src.main.python.Helper_functions import rotate_vector, get_volume
+from src.main.python.Helper_functions import rotate_vector, get_volume, get_area_ellipse
 from src.main.python.PermanentMagnet import PermanentMagnet
 
 class ActuationSystem:
@@ -20,8 +20,10 @@ class ActuationSystem:
     # class attribute types
     N_ElectroMagnet:       int          # Number of Electromagnets
     N_PermMagnet:          int          # Number of Permanent Magnets
-    pos_ElectroMagnet:     ndarray      # Electromagnets' position: [dz, axis of rot, angle]
-    pos_PermMagnet:        ndarray      # Permanent magnets' position: [pos, axis of rot, angle]
+    pos_ElectroMagnet:     tuple        # Electromagnets' position: [dz, axis of rot, angle]
+    param_ElectroMagnet:   ndarray      # Electromagnet's parameters: [n, r_in, l_c]
+    pos_PermMagnet:        ndarray      # Permanent magnets' position: [pos]
+    param_PermMagnet:      tuple        # Permanent magnets' parameters: [axis of rot, angle, moment, dim]
     PermMagnets:           list         # Instances of the PermanentMagnet class
     Electromagnets:        list         # Instances of the PermanentMagnet class
     Volume:                float        # Working space volume
@@ -61,7 +63,7 @@ class ActuationSystem:
     # check validity of position & number of PermMagnets
     def check_system_param(self):
         # check whether the entry dimensions are consistent
-        if self.N_ElectroMagnet == self.pos_ElectroMagnet.shape[0] and self.N_PermMagnet == self.pos_PermMagnet.shape[0]:
+        if self.N_ElectroMagnet == len(self.pos_ElectroMagnet) and self.N_PermMagnet == self.pos_PermMagnet.shape[0]:
             return True
         else: # exit system if parameters do not match: missing pos or misfit N_xxxMagnet
             print('System parameters do not match')
@@ -70,80 +72,70 @@ class ActuationSystem:
     ### setup of the RMF flux generation ###
 
     # define / get the base parameters for an Electromagnet
-    def get_base_Electromagnet(self) -> tuple:
-        # get the base parameters of the Electromagnet
-        d_z = self.pos_ElectroMagnet[:,0]
-        angle = np.array([self.pos_ElectroMagnet[:, 1], self.pos_ElectroMagnet[:, 2]])
-        n = int(400)
-        r_in = float(0.05)
-        l_c = float(0.55)
-        # return parameters as tuple
-        return d_z, angle, n, r_in, l_c
+    def set_Electromagnet_param(self, n: int, r_in: float, l_c: float):
+        # check validity of entries / output base model any entry is equal to zero
+        if n == 0 or r_in == 0 or l_c == 0:
+            self.param_ElectroMagnet = np.array([400, 0.05, 0.03])
+        else: # set custom parameters of the Electromagnets
+            self.param_ElectroMagnet = np.array([n, r_in, l_c])
 
-    # define / get custom parameters for a Electromagnet
-    def generate_custom_Electromagnet(self) -> tuple:
-        # get the custom parameters of the Electromagnet
-        d_z = self.pos_ElectroMagnet[:,0]
-        angle = np.array([self.pos_PermMagnet[:, 1], self.pos_PermMagnet[:, 2]])
-        n = int(input('Enter the number of turns:\n'))
-        r_in = float(input('Enter the inner radius:\n'))
-        l_c = float(input('Enter the length of the coil:\n'))
-        # return parameters as tuple
+    # get the electromagnets parameters in processable form
+    def get_Electromagnet_param(self) -> tuple:
+        # get all the parameters needed to set up an electromagnet instance
+        d_z = [dz for dz,_,_ in self.pos_ElectroMagnet]
+        angle = [[axis, angle] for _,axis,angle in self.pos_ElectroMagnet]
+        n = self.param_ElectroMagnet[0]
+        r_in = self.param_ElectroMagnet[1]
+        l_c = self.param_ElectroMagnet[2]
         return d_z, angle, n, r_in, l_c
 
     # create list of Electromagnet for cancellation flux generation
-    def generate_Electromagnet(self):
-        if int(input('Confirm standard Electromagnet parameters with 1\n')):
-            # take predefined parameters
-            d_z, angle, n, r_in, l_c = self.get_base_Electromagnet()
-        else:
-            # take custom defined parameters
-            d_z, angle, n, r_in, l_c = self.generate_custom_Electromagnet()
-
+    def generate_Electromagnets(self):
+        # check if parameters for Electromagnet have been entered
+        if not self.check_attrib('param_ElectroMagnet'):
+            self.set_Electromagnet_param(0, 0, 0)
+        # get the parameters in a usable form
+        d_z, angle, n, r_in, l_c = self.get_Electromagnet_param()
         # define the PermanentMagnets in the actuation system given the parameters
-        self.Electromagnets = [Electromagnet(d_z, angle[i], n, r_in, l_c) for i in range(self.N_ElectroMagnet)]
+        self.Electromagnets = [Electromagnet(d_z[i], list(angle[i]), n, r_in, l_c) for i in range(self.N_ElectroMagnet)]
 
     ### setup of the cancellation flux generation ###
 
-    # define / get the base parameters for a PermanentMagnet
-    def get_base_PermMagnet(self) -> tuple:
-        # get the base parameters of the PermanentMagnets
-        pos = list(self.pos_PermMagnet[:, 0])
-        moment = float(1000)
-        dim = np.array([0.07, 0.03, 0.01])
-        angle = np.array([self.pos_PermMagnet[:, 1], self.pos_PermMagnet[:, 2]])
-        # return parameters as tuple
-        return pos, moment, dim, angle
+    # define / get the base parameters for an Electromagnet
+    def set_PermMagnet_param(self, axis: tuple, moment: float, dim: ndarray):
+        # check validity of entries / output base model any entry is equal to zero
+        if moment == 0:
+            self.param_PermMagnet = tuple(['y', 0] for _ in range(self.N_PermMagnet)) , 1000, np.array([0.07,0.03,0.01])
+        else:  # set custom parameters of the Electromagnets
+            self.param_PermMagnet = axis, moment, dim
 
-    # define / get custom parameters for a PermanentMagnet
-    def generate_custom_PermMagnets(self) -> tuple:
-        # get the custom parameters of the PermanentMagnets
-        pos = list(self.pos_PermMagnet[:, 0])
-        moment = float(input('Enter the moment:\n'))
-        dim_x = float(input('Enter the x dimension:\n'))
-        dim_y = float(input('Enter the y dimension:\n'))
-        dim_z = float(input('Enter the z dimension:\n'))
-        dim = np.array([dim_x, dim_y, dim_z])
-        angle = np.array([self.pos_PermMagnet[:, 1], self.pos_PermMagnet[:, 2]])
+    # get the electromagnets parameters in processable form
+    def get_PermMagnet_param(self) -> tuple:
+        # get the parameters of the PermanentMagnets in a usable form
+        pos = self.pos_PermMagnet
+        angle = list([axis, angle] for axis,angle in self.param_PermMagnet[0])
+        moment = self.param_PermMagnet[1]
+        dim = self.param_PermMagnet[2]
         # return parameters as tuple
         return pos, moment, dim, angle
 
     # create list of PermanentMagnets for cancellation flux generation
     def generate_PermMagnets(self):
-        if int(input('Confirm standard permanent Magnet parameters with 1\n')):
-            # take predefined parameters
-            pos, moment, dim, angle = self.get_base_PermMagnet()
-        else:
-            # take custom defined parameters
-            pos, moment, dim, angle = self.generate_custom_PermMagnets()
-
+        # check if parameters for Permanent Magnet have been entered
+        if not self.check_attrib('param_PermMagnet'):
+            self.set_PermMagnet_param(tuple(['y', 0],) * self.N_PermMagnet, 0, np.array([0,0,0]))
+        # get the parameters in a usable form
+        pos, moment, dim, angle = self.get_PermMagnet_param()
         # define the PermanentMagnets in the actuation system given the parameters
-        self.PermMagnets = [PermanentMagnet(pos[i], moment, dim, list(angle[i, :])) for i in range(self.N_PermMagnet)]
+        self.PermMagnets = [PermanentMagnet(pos[i], moment, dim, list(angle[i])) for i in range(self.N_PermMagnet)]
 
     ### generate complete flux for point in space at a point in time ###
 
     # getting the flux generated by all the PermanentMagnets for a single point in space
     def get_canc_flux(self, o_point: ndarray) -> ndarray:
+        # check if Permanent Magnets exist, generate if necessary
+        if not self.check_attrib('PermMagnets'):
+            self.generate_PermMagnets()
         # setup B to be zero
         B = np.zeros(3)
         # loop over every magnet
@@ -157,6 +149,9 @@ class ActuationSystem:
 
     # getting the flux generated by all the Electromagnets for a single point in space for a certain current
     def get_RMF_flux(self, current: ndarray, o_point: ndarray) -> ndarray:
+        # check if Permanent Magnets exist, generate if necessary
+        if not self.check_attrib('Electromagnets'):
+            self.generate_Electromagnets()
         # setup B to be zero
         B = np.zeros(3)
         # loop over every magnet
@@ -173,7 +168,7 @@ class ActuationSystem:
     def get_system_flux(self, current: ndarray, o_point: ndarray) -> ndarray:
         # check if the Electromagnets and PermanentMagnets are already generated
         if not self.check_attrib('Electromagnets') or not self.check_attrib('PermMagnets'):
-            self.generate_Electromagnet()  # generate the electromagnets if they did not exist yet
+            self.generate_Electromagnets()  # generate the electromagnets if they did not exist yet
             self.generate_PermMagnets()  # generate the PermanentMagnets if they did not exist yet
 
         # sum the flux and return it as a 3D vector
@@ -255,8 +250,8 @@ class ActuationSystem:
     # set the Matrix to get the currents based on the expected B-flux at the Focus-Point
     def set_transformation_Matrix(self):
         # Based on the assumption that M x I = B, we want to find the pseudo-inverse M+ so that M+ x B = I
-        a = np.sin(self.pos_ElectroMagnet[1]) # vector composition of B-flux single electromagnet
-        b = np.cos(self.pos_ElectroMagnet[1])
+        a = np.sin(self.pos_ElectroMagnet[2][0]) # vector composition of B-flux single electromagnet
+        b = np.cos(self.pos_ElectroMagnet[2][0])
         # define the transformation matrix based on the electromagnets relative position
         M = np.array([[a, -a, 0, 0],
                       [0, 0, a, -a],
@@ -275,12 +270,24 @@ class ActuationSystem:
     ### Evaluate volume where micro-robots are rotating ###
 
     # Rule from 'Spatially selective delivery of living magnetic micro-robots through torque-focusing.' paper
-    def check_is_rotating(self, o_point: ndarray) -> bool:
+    def check_is_rotating_mag(self, o_point: ndarray) -> bool:
         # get the magnitude of the cancellation field at point in space
         B_canc = np.linalg.norm(self.get_canc_flux(o_point))
         # get the magnitude of the RMF averaged flux vector at point in space
-        B_RMF = self.get_RMF_mag(o_point)
+        B_RMF = np.average(self.get_RMF_mag(o_point))
         if B_canc * 2 > B_RMF:
+            return False
+        return True
+
+    # Rule from 'Theoretical Considerations for the Effect of Rotating Magnetic Field Shape on the Workspace of Magnetic micro-robots.' paper
+    def check_is_rotating_RMF(self, o_point: ndarray) -> bool:
+        # get the magnitude of the RMF flux vector at point in space
+        B_RMF = self.get_RMF_mag(o_point)
+        # define the minimal and maximal axis of the elliptical RMF flux
+        a = np.min(B_RMF)
+        b = np.max(B_RMF)
+        # compare its area to the minimal required area of circular shape which we define to be 1mT as radius
+        if get_area_ellipse(a, b) < np.pi:
             return False
         return True
 
@@ -293,24 +300,24 @@ class ActuationSystem:
         t = get_time_steps(1 / self.FREQ, fps)
         B_RMF = np.zeros(fps)
         # loop over each time step
-        for step in len(t):
+        for step in range(len(t)):
             B_fp = self.get_rotation(t[step]) # save the expected flux in the focus point
             current = self.get_B_flux_gen_current(B_fp) # convert this flux into the needed currents by the electromagnets
             B_RMF[step] = np.linalg.norm(self.get_RMF_flux(current, o_point)) # get the flux at point in space
 
-        return np.average(B_RMF)
+        return B_RMF
 
     # get a bool value for each point in space to evaluate if they are rotating or not
     def get_rotating_volume(self):
         # get the volume of interest and its corresponding array which will store a boolean variable: defines is rotating
-        X, Y, Z = get_volume(offset, offset, offset, distance, distance, distance, density, density, density)
+        X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
         vol_rot = np.zeros((X.shape[0], X.shape[1], X.shape[2]))
 
-        for x in X.shape[0]: # loop over every point in volume
-            for y in Y.shape[1]:
-                for z in Z.shape[2]:
-                    o_point = np.array([x, y, z]) # define the point of interest
-                    vol_rot[x,y,z] = self.check_is_rotating(o_point) # evaluate if micro-robots are rotating
+        for x in range(X.shape[0]): # loop over every point in volume
+            for y in range(Y.shape[1]):
+                for z in range(Z.shape[2]):
+                    o_point = np.array([X[x,y,z], Y[x,y,z], Z[x,y,z]]) # define the point of interest
+                    vol_rot[x,y,z] = self.check_is_rotating_mag(o_point) # evaluate if micro-robots are rotating
 
         return vol_rot
 

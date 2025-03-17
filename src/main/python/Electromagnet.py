@@ -127,7 +127,7 @@ class Electromagnet:
     # calculating the total points rendered for one Electromagnet
     def get_total_points(self) -> int:
         total_points = self.n * self.POINTS_PER_TURN
-        return total_points
+        return int(total_points)
 
     # calculating how many turns have the same radius
     def get_n_l(self) -> int:

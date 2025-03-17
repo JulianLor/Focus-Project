@@ -46,4 +46,4 @@ canc_cube_size = 0.01 # FEM smallest magnet size
 # Constants Actuation system
 offset = -0.1
 distance = 0.2
-density = 0.05
+density = 0.1

@@ -7,6 +7,11 @@ import numpy as np
 from Permanent_Magnet_model import generate_animation_frames_pmodel, create_video_from_frames_pmodel
 from Cancellation import cancellation_field, plotting_canc_field
 
+from src.main.python.ActuationSystem import ActuationSystem
+from src.main.python.Electromagnet import Electromagnet
+from src.main.python.PermanentMagnet import PermanentMagnet
+
+"""
 # run the multiprocessing
 if __name__ == '__main__':
     # setup of time to measure time usage for each process
@@ -46,7 +51,24 @@ if __name__ == '__main__':
     create_video_from_frames(time_steps)
 
 """
-
+"""
 B_fields_canc = cancellation_field()
 plotting_canc_field(B_fields_canc)
 """
+
+a = 0.285
+b = np.sqrt(2) * 0.285 / 2
+c = 0.105
+pos_PermMagnets = np.array([[a, 0, c], [b, b, c], [0, a, 0.105], [-b, b, 0.105], [-a, -0, 0.105], [-b,-b,0.105], [0, -a, 0.105], [b, -b, c]])
+pos_ElectroMagnet = [0.12, 'y', np.pi / 4], [0.12, 'x', -np.pi / 4], [0.12, 'y', -np.pi / 4], [0.12, 'x', np.pi / 4]
+
+System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
+vol_rot = System.get_rotating_volume()
+print(vol_rot)
+count = 0
+for i in range(vol_rot.shape[0]):
+    for j in range(vol_rot.shape[1]):
+        for k in range(vol_rot.shape[2]):
+            count += vol_rot[i,j,k]
+
+print(count)

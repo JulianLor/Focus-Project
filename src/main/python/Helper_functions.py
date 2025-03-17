@@ -124,15 +124,16 @@ def calc_SVD(M: ndarray) -> tuple:
     return U, S, Vt
 
 # area of ellipse
-def area_ellipse(a: float, b: float) -> float:
+def get_area_ellipse(a: float, b: float) -> float:
     return a * b * np.pi
 
 # setup volume with 9 degrees of freedom [offset, length, density]
 def get_volume(x_0: float, x_l: float, x_d: float, y_0: float, y_l: float, y_d: float, z_0: float, z_l: float, z_d: float) -> tuple:
     # set up each coordinate with its corresponding variables
-    x_vals = np.linspace(x_0, x_0 + x_l, int(x_l / x_d), endpoint=True)
-    y_vals = np.linspace(y_0, y_0 + y_l, int(y_l / y_d), endpoint=True)
-    z_vals = np.linspace(z_0, z_0 + z_l, int(z_l / z_d), endpoint=True)
+    x_vals = np.linspace(x_0, x_0 + x_l, int(x_l / x_d) + 1, endpoint=True)
+    y_vals = np.linspace(y_0, y_0 + y_l, int(y_l / y_d) + 1, endpoint=True)
+    z_vals = np.linspace(z_0, z_0 + z_l, int(z_l / z_d) + 1, endpoint=True)
     # combine into common 3D space with ij indexing
     X, Y, Z = np.meshgrid(x_vals, y_vals, z_vals, indexing="ij")
+    print(X)
     return X, Y, Z
