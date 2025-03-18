@@ -1,15 +1,17 @@
 from Vector_Field_Animation import (setup_animation_frames, create_video_from_frames, run_multiprocessing,
                                     calc_base_B_field, calc_timed_B_field)
 from B_field_analysis import B_field_analysis
-from config import time_steps
+from config import time_steps, output_folder, distance, offset, density, Grid_density, Grid_size
 import time
 import numpy as np
 from Permanent_Magnet_model import generate_animation_frames_pmodel, create_video_from_frames_pmodel
-from Cancellation import cancellation_field, plotting_canc_field
+from Cancellation import cancellation_field, plotting_canc_field, plot_canc_field_z_axis
+from src.main.python.Helper_functions import get_volume
 
 from src.main.python.ActuationSystem import ActuationSystem
 from src.main.python.Electromagnet import Electromagnet
 from src.main.python.PermanentMagnet import PermanentMagnet
+from src.main.python.Visualisation import plot_magnetic_field
 
 """
 # run the multiprocessing
@@ -56,13 +58,18 @@ B_fields_canc = cancellation_field()
 plotting_canc_field(B_fields_canc)
 """
 
-a = 0.285
+a = 0.155
 b = np.sqrt(2) * 0.285 / 2
 c = 0.105
-pos_PermMagnets = np.array([[a, 0, c], [b, b, c], [0, a, 0.105], [-b, b, 0.105], [-a, -0, 0.105], [-b,-b,0.105], [0, -a, 0.105], [b, -b, c]])
+pos_PermMagnets = np.array([[a, 0, c], [b, b, c], [0, a, c], [-b, b, c], [-a, -0, c], [-b,-b,c], [0, -a,c], [b, -b, c]])
 pos_ElectroMagnet = [0.12, 'y', np.pi / 4], [0.12, 'x', -np.pi / 4], [0.12, 'y', -np.pi / 4], [0.12, 'x', np.pi / 4]
 
 System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
+B_canc = System.get_canc_field()
+X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
+plot_magnetic_field(X,Y,Z, B_canc[...,0], B_canc[...,1], B_canc[...,2], 12345, output_folder)
+B_mag = np.linalg.norm(B_canc, axis=-1)
+plot_canc_field_z_axis(B_mag, Grid_density, Grid_size)
 vol_rot = System.get_rotating_volume()
 print(vol_rot)
 count = 0

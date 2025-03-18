@@ -135,5 +135,4 @@ def get_volume(x_0: float, x_l: float, x_d: float, y_0: float, y_l: float, y_d: 
     z_vals = np.linspace(z_0, z_0 + z_l, int(z_l / z_d) + 1, endpoint=True)
     # combine into common 3D space with ij indexing
     X, Y, Z = np.meshgrid(x_vals, y_vals, z_vals, indexing="ij")
-    print(X)
     return X, Y, Z

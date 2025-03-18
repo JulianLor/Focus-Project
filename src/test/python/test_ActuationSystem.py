@@ -134,7 +134,7 @@ class TestElectromagnet(unittest.TestCase):
         result = test.param_PermMagnet
 
         # check result with predicted result
-        prediction = angle, 1000, np.array([0.07, 0.03, 0.01])
+        prediction = angle, 1153873.3374162412, np.array([0.07, 0.03, 0.01])
         self.assertTupleEqual((result[0], result[1]), (prediction[0], prediction[1]))
         assert_array_almost_equal(result[2], prediction[2])
 

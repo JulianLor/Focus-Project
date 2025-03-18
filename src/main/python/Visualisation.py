@@ -73,7 +73,7 @@ def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
 
     # Save the frame as an image
     frame_filename = os.path.join(output_folder, f"frame_{step:03d}.png")
-    mlab.savefig(frame_filename, size=(480, 256))
+    mlab.savefig(frame_filename, size=(1880, 1024))
     mlab.close()
 
     # Verify the saved image size

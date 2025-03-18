@@ -289,23 +289,3 @@ def force_on_dipole(m, B_grad):
     #Calculate force based on Gradient of B and the magnetisation vector of the magnet
     force = np.dot(m, B_grad)
     return force
-
-m = canc_magnet_moment * canc_magnet_dimensions[0] * canc_magnet_dimensions[1] * canc_magnet_dimensions[2]
-
-d1 = canc_vert_distance + (canc_magnet_dimensions[2] / 2)
-d2 = canc_hor_distance/2 + (canc_magnet_dimensions[0] / 2)
-a = np.sqrt(2) / 2
-cube_centers = np.array([[d2, 0, d1],
-                         [a*d2, a*d2, d1],
-                         [0, d2, d1],
-                         [-a*d2, a*d2, d1],
-                         [-d2, 0, d1],
-                         [-a*d2, -a*d2, d1],
-                         [0,-d2, d1],
-                         [a*d2, -a*d2, d1],])
-B_grad = 0
-for i in range(7):
-    r = create_r_vector(cube_centers[i + 1], cube_centers[0])
-    B_grad += magnetic_dipole_gradient(m, r)
-force = force_on_dipole(m, B_grad)
-print(force)
