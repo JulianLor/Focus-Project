@@ -27,11 +27,11 @@ class TestElectromagnet(unittest.TestCase):
         test = PermanentMagnet([0, 0, 0], 1000, np.array([0.1,0.1,0.1]), ['y', 0])
 
         # check if system exit is triggered
-        with self.assertRaises(SystemExit) as cm:
-            test.get_volume_FEM()  # Should trigger sys.exit()
+        result = test.get_volume_FEM()
 
         # Check exit code
-        self.assertEqual(cm.exception.code, None)
+        prediction = 0.01 * 0.01 * 0.01
+        self.assertAlmostEqual(result, prediction)
 
     # testing whether the returned moment vector is correct
     def test_get_moment_vector(self):
@@ -69,7 +69,7 @@ class TestElectromagnet(unittest.TestCase):
             test.get_FEM_number()  # Should trigger sys.exit()
 
         # Check exit code
-        self.assertEqual(cm.exception.code, None)
+        self.assertEqual(cm.exception.code, 'FEM dimensions do not work out')
 
     # testing whether the cube_centers are returned correctly
     def test_divide_magnet(self):
@@ -121,19 +121,19 @@ class TestElectromagnet(unittest.TestCase):
             test.get_magnetisation('test')  # Should trigger sys.exit()
 
         # Check exit code
-        self.assertEqual(cm.exception.code, None)
+        self.assertEqual(cm.exception.code, 'Invalid mode')
 
     # testing whether if system exit is triggered with missing cube size
     def test_get_magnetisation_4(self):
         # setup test instance
-        test = PermanentMagnet([0, 0, 0], 1000, np.array([0.01,0.05,0.1]), ['y', np.pi/2])
+        test = PermanentMagnet([0, 0, 0], 1000, np.array([0.01,0.05,0.1]), ['x', np.pi/2])
 
-        # check if system exit is triggered
-        with self.assertRaises(SystemExit) as cm:
-            test.get_magnetisation('FEM')  # Should trigger sys.exit()
+        # get the result that is being verified
+        result = test.get_magnetisation('FEM')
 
-        # Check exit code
-        self.assertEqual(cm.exception.code, None)
+        # check result with predicted result
+        prediction = np.array([0, -0.001, 0])
+        assert_array_almost_equal(result, prediction)
 
     # testing whether the flux for a FEM magnet is returned correctly
     def test_get_B_flux(self):

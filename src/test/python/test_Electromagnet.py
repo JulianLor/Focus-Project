@@ -63,7 +63,7 @@ class TestElectromagnet(unittest.TestCase):
             test.rotating_point_to_pos(np.array([0, 0]), 'test')
 
         # Check exit code
-        self.assertEqual(cm.exception.code, None)
+        self.assertEqual(cm.exception.code, 'Invalid mode')
 
     # testing if the representative length of Electromagnet point is correct
     def test_get_dl(self):
@@ -156,7 +156,20 @@ class TestElectromagnet(unittest.TestCase):
             test.get_solenoid_B_flux(np.array([0,0,0]))  # Should trigger sys.exit()
 
         # Check exit code
-        self.assertEqual(cm.exception.code, None)
+        self.assertEqual(cm.exception.code, 'Current vectors not defined')
+
+    # testing if the B-flux is correctly calculated for the entire electromagnet with significant parameters
+    def test_get_solenoid_B_flux_3(self):
+        # setup test instance
+        test = Electromagnet(0, ['y', 0], 400, 0.05, 0.03)
+        # set the test-electromagnets current to 1 A
+        test.set_solenoid_current(5.5)
+        # get the result that is being verified
+        result = test.get_solenoid_B_flux(np.array([0, 0, -0.1485]))
+
+        # check result with predicted result
+        prediction = np.array([0,0,0.0017461])
+        assert_array_almost_equal(result.shape, prediction.shape)
 
     def test_lorentz_force_calc(self):
         # setup test instance

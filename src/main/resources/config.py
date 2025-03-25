@@ -19,7 +19,7 @@ p_copper = 8.96 # density of copper in g / cm^3
 Grid_density = 0.01  # defines the Grid_density
 Hz = 2 # rotations per second
 rot_freq = 6 # number of seconds to return to old rot. axis
-Grid_size = np.array([0.05, 0.05, 0.05]) # describes size of grid (x2)
+Grid_size = np.array([0.04, 0.04, 0.04]) # describes size of grid (x2)
 points_per_turn = 50  # points rendered
 shift_distance = 0.2 # distance to focus point
 
@@ -44,6 +44,6 @@ canc_magnet_moment = np.array([0, 0, -1.45/mu_0]) # Magnetization of magnet
 canc_cube_size = 0.01 # FEM smallest magnet size
 
 # Constants Actuation system
-offset = -0.05
-distance = 0.1
+offset = -0.01
+distance = 0.01
 density = 0.01

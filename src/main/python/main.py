@@ -58,24 +58,42 @@ B_fields_canc = cancellation_field()
 plotting_canc_field(B_fields_canc)
 """
 
+# setup of actuation system parameters
 a = 0.155
 b = np.sqrt(2) * 0.285 / 2
 c = 0.105
 pos_PermMagnets = np.array([[a, 0, c], [b, b, c], [0, a, c], [-b, b, c], [-a, -0, c], [-b,-b,c], [0, -a,c], [b, -b, c]])
-pos_ElectroMagnet = [0.12, 'y', np.pi / 4], [0.12, 'x', -np.pi / 4], [0.12, 'y', -np.pi / 4], [0.12, 'x', np.pi / 4]
-
+pos_ElectroMagnet = [0.18, 'y', np.pi / 4], [0.18, 'x', -np.pi / 4], [0.18, 'y', -np.pi / 4], [0.18, 'x', np.pi / 4]
+# create system
 System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
-B_canc = System.get_canc_field()
-X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
-plot_magnetic_field(X,Y,Z, B_canc[...,0], B_canc[...,1], B_canc[...,2], 12345, output_folder)
-B_mag = np.linalg.norm(B_canc, axis=-1)
-plot_canc_field_z_axis(B_mag, Grid_density, Grid_size)
-vol_rot = System.get_rotating_volume()
-print(vol_rot)
-count = 0
-for i in range(vol_rot.shape[0]):
-    for j in range(vol_rot.shape[1]):
-        for k in range(vol_rot.shape[2]):
-            count += vol_rot[i,j,k]
 
-print(count)
+# save the RMF system into the dataframe for a time period of 1s
+B_flux_direction_sim = System.get_B_flux_direction_sim()
+for time in range(B_flux_direction_sim.shape[0]):
+    System.save_RMF_field(B_flux_direction_sim[time])
+    print(f'Successfully saved {time+1} of {B_flux_direction_sim.shape[0]} total steps')
+
+# export dataframe as csv
+System.export_to_csv()
+
+# save the canc system into the dataframe
+System.save_canc_field()
+print('Successfully saved cancellation field')
+
+# save if points are rotating or not into the dataframe
+System.save_is_rot_field()
+print('Successfully saved is_rot_field field')
+
+# export dataframe as csv
+System.export_to_csv()
+
+
+
+
+
+
+
+
+
+
+

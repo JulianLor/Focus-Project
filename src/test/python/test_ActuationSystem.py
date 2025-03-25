@@ -186,3 +186,58 @@ class TestElectromagnet(unittest.TestCase):
             assert_array_almost_equal(instance.magnet_dim, np.array([0.7, 0.03, 0.01]))
             self.assertListEqual(instance.angle, angle[i])
 
+    # check if the flux output of the cancellation system is correct
+    def test_get_canc_flux(self):
+        # setup test instance
+        pos_ElectroMagnet = [0.11, 'y', np.pi / 4], [0.11, 'x', -np.pi / 4], [0.11, 'y', -np.pi / 4], [0.11, 'x',  np.pi / 4]
+        a = 0.285
+        b = np.sqrt(2) * 0.285 / 2
+        c = 0.105
+        pos_PermMagnet = np.array([[a, 0, c], [b, b, c], [0, a, 0.105], [-b, b, 0.105],
+                                   [-a, -0, 0.105], [-b, -b, 0.105], [0, -a, 0.105], [b, -b, c]])
+
+        test = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnet)
+
+        # get the result that is being verified
+        angle = [['y', 0], ['y', 0], ['y', 0], ['y', 0],
+                 ['y', 0], ['y', 0], ['y', 0], ['y', 0]]
+        test.set_PermMagnet_param(tuple(angle), 10000, np.array([0.7, 0.03, 0.01]))
+        test.generate_PermMagnets()
+        result = test.get_canc_flux(np.array([0,0,0]))
+
+        # check result with predicted result
+        prediction = np.array([0,0,0])
+        for i in range(8):
+            prediction_magnet = PermanentMagnet(pos_PermMagnet[i], 10000, np.array([0.7, 0.03, 0.01]), angle[i])
+            prediction = np.add(prediction, prediction_magnet.get_magnet_B_flux(np.array([0, 0, 0]))) # r vector to point of interest
+        assert_array_almost_equal(result, prediction)
+
+    # check if the flux output of the RMF system is correct
+    def test_get_RMF_flux(self):
+        # setup test instance
+        pos_ElectroMagnet = [0.11, 'y', np.pi / 4], [0.11, 'x', -np.pi / 4], [0.11, 'y', -np.pi / 4], [0.11, 'x',
+                                                                                                       np.pi / 4]
+        a = 0.285
+        b = np.sqrt(2) * 0.285 / 2
+        c = 0.105
+        pos_PermMagnet = np.array([[a, 0, c], [b, b, c], [0, a, 0.105], [-b, b, 0.105],
+                                   [-a, -0, 0.105], [-b, -b, 0.105], [0, -a, 0.105], [b, -b, c]])
+
+        test = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnet)
+
+        # get the result that is being verified
+        test.set_Electromagnet_param(200, 0.05, 0.03)
+        test.generate_Electromagnets()
+        result = test.get_RMF_flux(np.array([1,1,1,1]), np.array([0,0,0]))
+
+        # generate expected result
+        angle_Electromagnets = ['y', np.pi / 4], ['x', -np.pi / 4], ['y', -np.pi / 4], ['x', np.pi / 4]
+
+        # check result with predicted result
+        prediction = np.array([0, 0, 0])
+        for i in range(4):
+            prediction_magnet = Electromagnet(0.11, angle_Electromagnets[i], 200, 0.05, 0.03)
+            prediction_magnet.set_solenoid_current(1.0)
+            prediction = np.add(prediction, prediction_magnet.get_solenoid_B_flux(np.array([0, 0, 0])))
+        assert_array_almost_equal(result, prediction)
+

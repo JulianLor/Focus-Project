@@ -176,8 +176,7 @@ class Electromagnet:
         elif mode == 'normal': # rotation to its position
             coordinates = rotate_vector(point, self.angle[0], self.angle[1])
         else:
-            print('Invalid mode')
-            sys.exit()
+            sys.exit('Invalid mode')
         return coordinates
 
     ### methods to define the array saving the current vector and point coordinates ###
@@ -297,8 +296,7 @@ class Electromagnet:
             self.set_solenoid_points()
         # check if the current vectors are defined, exit if type is Null
         if not self.check_attrib('current_vectors'):
-            print('Current vectors not defined')
-            sys.exit()
+            sys.exit('Current vectors not defined')
 
         B = np.array([0,0,0]) # set initial flux to zero
         for index in range(self.solenoid_points.shape[0]): # loop over every index to sum the B-flux

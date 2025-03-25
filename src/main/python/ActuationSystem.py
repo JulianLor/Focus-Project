@@ -1,42 +1,48 @@
 import sys
-
 import numpy as np
+import pandas as pd
+import os
 from numpy import ndarray
-from src.main.python.Helper_functions import get_time_steps, get_inverse
+from datetime import datetime
+
+from src.main.python.Helper_functions import (get_time_steps, get_inverse, check_is_rotating_mag, check_is_rotating_RMF,
+                                              rotate_vector, get_volume)
 from config import fps, density, offset, distance
 from src.main.python.Electromagnet import Electromagnet
-from src.main.python.Helper_functions import rotate_vector, get_volume, get_area_ellipse
 from src.main.python.PermanentMagnet import PermanentMagnet
 
 class ActuationSystem:
     # class level constants
-    FREQ =                 1            # Frequency of rotation
-    PERIOD =               60           # Period of rotational axis rotation
-    LIM_N_ElectroMagnet =  4            # Limit of Electromagnets
-    LIM_N_PermMagnet =     8            # Limit of Permanent Magnets
-    DURATION =             10           # Duration of the simulation
-    ACCURACY =             0.0001       # Accuracy of the B-flux generation
-    MU_0 =                 4*np.pi*1e-7 # Permeability of free space (T·m/A)
-    N52_MOMENT =           1.45/MU_0    # Magnetisation of N52 Magnet
-    I_MAX =                5.5          # Maximal current to get 1 mT at Focus point
+    FREQ =                 1                # Frequency of rotation
+    PERIOD =               60               # Period of rotational axis rotation
+    LIM_N_ElectroMagnet =  4                # Limit of Electromagnets
+    LIM_N_PermMagnet =     8                # Limit of Permanent Magnets
+    DURATION =             1                # Duration of the simulation
+    ACCURACY =             0.0001           # Accuracy of the B-flux generation
+    MU_0 =                 4*np.pi*1e-7     # Permeability of free space (T·m/A)
+    N52_MOMENT =           1.45/MU_0        # Magnetisation of N52 Magnet
+    I_MAX =                5.5              # Maximal current to get 1 mT at Focus point
 
     # class attribute types
-    N_ElectroMagnet:       int          # Number of Electromagnets
-    N_PermMagnet:          int          # Number of Permanent Magnets
-    pos_ElectroMagnet:     tuple        # Electromagnets' position: [dz, axis of rot, angle]
-    param_ElectroMagnet:   ndarray      # Electromagnet's parameters: [n, r_in, l_c]
-    pos_PermMagnet:        ndarray      # Permanent magnets' position: [pos]
-    param_PermMagnet:      tuple        # Permanent magnets' parameters: [axis of rot, angle, moment, dim]
-    PermMagnets:           list         # Instances of the PermanentMagnet class
-    Electromagnets:        list         # Instances of the PermanentMagnet class
-    Volume:                float        # Working space volume
-    Matrix:                ndarray      # Transformation Matrix (M * B = I)
+    N_ElectroMagnet:       int              # Number of Electromagnets
+    N_PermMagnet:          int              # Number of Permanent Magnets
+    pos_ElectroMagnet:     tuple            # Electromagnets' position: [dz, axis of rot, angle]
+    param_ElectroMagnet:   ndarray          # Electromagnet's parameters: [n, r_in, l_c]
+    pos_PermMagnet:        ndarray          # Permanent magnets' position: [pos]
+    param_PermMagnet:      tuple            # Permanent magnets' parameters: [axis of rot, angle, moment, dim]
+    PermMagnets:           list             # Instances of the PermanentMagnet class
+    Electromagnets:        list             # Instances of the PermanentMagnet class
+    Volume:                float            # Working space volume
+    Matrix:                ndarray          # Transformation Matrix (M * B = I)
+    Data:                  pd.DataFrame     # Dataframe to efficiently save and process data
 
     def __init__(self, N_ElectroMagnet, N_PermMagnet, pos_ElectroMagnet, pos_PermMagnet):
         self.N_ElectroMagnet = N_ElectroMagnet
         self.N_PermMagnet = N_PermMagnet
         self.pos_ElectroMagnet = pos_ElectroMagnet
         self.pos_PermMagnet = pos_PermMagnet
+        index = pd.MultiIndex.from_tuples([], names=["x", "y", "z", "fp_x", "fp_y", "fp_z"])
+        self.Data = pd.DataFrame(columns=['B.tot', 'B.tot.mag', 'B.canc', 'B.canc.mag', 'B.RMF', 'B.RMF.mag', 'is.rot'], index=index)
 
     ### adapt the Actuation System's attributes ###
 
@@ -167,15 +173,31 @@ class ActuationSystem:
         # return the sum of the generated flux
         return B
 
-    # getting the superpositioned (summed) flux for a point in space: adding cancellation and RMF flux
-    def get_system_flux(self, current: ndarray, o_point: ndarray) -> ndarray:
-        # check if the Electromagnets and PermanentMagnets are already generated
-        if not self.check_attrib('Electromagnets') or not self.check_attrib('PermMagnets'):
-            self.generate_Electromagnets()  # generate the electromagnets if they did not exist yet
-            self.generate_PermMagnets()  # generate the PermanentMagnets if they did not exist yet
+    ### Calculate the flux fields generated by the system
 
-        # sum the flux and return it as a 3D vector
-        B = np.add(self.get_RMF_flux(current, o_point), self.get_canc_flux(o_point))
+    # Calculate the static cancellation field for a volume
+    def get_canc_field(self, X: ndarray, Y: ndarray, Z: ndarray) -> ndarray:
+        # initialise variable that stores the flux magnitudes
+        B = np.zeros((X.shape[0], X.shape[1], X.shape[2], 3))
+
+        for x in range(X.shape[0]):  # loop over every point in volume
+            for y in range(Y.shape[1]):
+                for z in range(Z.shape[2]):
+                    o_point = np.array([X[x, y, z], Y[x, y, z], Z[x, y, z]])  # define the point of interest
+                    B[x, y, z] = self.get_canc_flux(o_point)  # get the cancellation field flux
+
+        return B
+
+    def get_RMF_field(self, current: ndarray, X: ndarray, Y: ndarray, Z: ndarray):
+        # initialise variable that stores the flux magnitudes
+        B = np.zeros((X.shape[0], X.shape[1], X.shape[2], 3))
+
+        for x in range(X.shape[0]):  # loop over every point in volume
+            for y in range(Y.shape[1]):
+                for z in range(Z.shape[2]):
+                    o_point = np.array([X[x, y, z], Y[x, y, z], Z[x, y, z]])  # define the point of interest
+                    B[x, y, z] = self.get_RMF_flux(current, o_point)  # get the RMF field flux
+
         return B
 
     ### defining B-flux shape / direction for the Actuation System's flux gen ###
@@ -185,8 +207,8 @@ class ActuationSystem:
         B_direction = np.zeros((self.DURATION * fps, 3)) # set directions to zero
         t = get_time_steps(self.DURATION, fps) # get the time intervals for which we calc the B-flux
 
-        for index in range(t): # loop over the time steps to get B-flux direction
-            B_direction = self.get_B_flux_direction(float(t[index]))
+        for time in range(B_direction.shape[0]): # loop over the time steps to get B-flux direction
+            B_direction[time] = self.get_B_flux_direction(float(t[time]))
 
         return B_direction
 
@@ -240,8 +262,6 @@ class ActuationSystem:
     def get_current_sim(self) -> ndarray:
         # get the expected B-flux directions at the Focus-Point
         B_direction = self.get_B_flux_direction_sim()
-        # define the transformation Matrix
-        self.set_transformation_Matrix()
 
         currents = np.zeros((self.DURATION * fps, 4)) # set initial currents to 0
         # iterate over the B-directions to get the according currents
@@ -264,82 +284,122 @@ class ActuationSystem:
 
     # calculate the required current for the expected B-flux at the focus point
     def get_B_flux_gen_current(self, B_direction: ndarray) -> ndarray:
+        # define the transformation Matrix if necessary
+        if not self.check_attrib('Matrix'):
+            self.set_transformation_Matrix()
         # reshape B into right format to complete multiplication
         B = B_direction.reshape(3,1)
         # get 4,1 vector for the currents
-        I = np.dot(self.Matrix, B)
+        I = np.dot(self.Matrix, B) * self.I_MAX
         return I
 
     ### Evaluate volume where micro-robots are rotating ###
 
-    # Rule from 'Spatially selective delivery of living magnetic micro-robots through torque-focusing.' paper
-    def check_is_rotating_mag(self, o_point: ndarray) -> bool:
-        # get the magnitude of the cancellation field at point in space
-        B_canc = np.linalg.norm(self.get_canc_flux(o_point))
-        # get the magnitude of the RMF averaged flux vector at point in space
-
-        B_RMF = np.average(self.get_RMF_mag(o_point))
-        if B_canc * 2 > B_RMF:
-            return False
-        return True
-
-    # Rule from 'Theoretical Considerations for the Effect of Rotating Magnetic Field Shape on the Workspace of Magnetic micro-robots.' paper
-    def check_is_rotating_RMF(self, o_point: ndarray) -> bool:
-        # get the magnitude of the RMF flux vector at point in space
-        B_RMF = self.get_RMF_mag(o_point)
-        # define the minimal and maximal axis of the elliptical RMF flux
-        a = np.min(B_RMF)
-        b = np.max(B_RMF)
-        # compare its area to the minimal required area of circular shape which we define to be 1mT as radius
-        if get_area_ellipse(a, b) < np.pi:
-            return False
-        return True
-
-    # get the averaged RMF magnitude in a single point in space for a given current in the electromagnets
-    def get_RMF_mag(self, o_point: ndarray) -> ndarray:
-        # check whether the transformation matrix has been set
-        if not self.check_attrib('Matrix'):
-            self.set_transformation_Matrix()
-        # set up the time frame of one singular rotation, and the array that saves the magnitude of flux
-        t = get_time_steps(1 / self.FREQ, fps)
-        B_RMF = np.zeros(fps)
-        # loop over each time step
-        for step in range(len(t)):
-            B_fp = self.get_rotation(t[step]) # save the expected flux in the focus point
-            current = self.get_B_flux_gen_current(B_fp) * self.I_MAX # convert this flux into the needed currents by the electromagnets
-            B_RMF[step] = np.linalg.norm(self.get_RMF_flux(current, o_point)) # get the flux at point in space
-
-        return B_RMF
-
     # get a bool value for each point in space to evaluate if they are rotating or not
-    def get_rotating_volume(self) -> ndarray:
-        # get the volume of interest and its corresponding array which will store a boolean variable: defines is rotating
+    def get_is_rotating(self, coordinates: tuple, mode: str = 'Mag') -> bool:
+        # look for the subset of data with the matching coordinates
+        subset = self.Data.xs(coordinates, level=["x", "y", "z"])
+        # if there are less 10 datapoints no proper analysis can be done
+        if subset.shape[0] < int(fps / self.FREQ):
+            sys.exit('To little data to analyse rotating volume')
+        B_canc = subset.iloc[0]['B.canc.mag']
+        B_RMF = subset.iloc['B.RMF.mag']
+        if mode == 'Mag':
+            return check_is_rotating_mag(B_RMF, B_canc)
+        elif mode == 'RMF':
+            return check_is_rotating_RMF(B_RMF)
+        elif mode == 'Mag & RMF':
+            return check_is_rotating_mag(B_RMF, B_canc) and check_is_rotating_RMF(B_RMF)
+        sys.exit('Wrong mode to analyse rotating volume')
+
+    ### Save information into the instances dataframe for more efficient processing
+
+    # save the cancellation flux of one point into the dataframe
+    def save_canc_flux(self, coordinates: tuple, B_canc: ndarray):
+        # Select all rows where (x, y, z) match coordinates
+        filtered_data = self.Data.xs(coordinates, level=['x', 'y', 'z'])
+
+        # A# save the flux and flux mag into the dataframe for all matching indices
+        self.Data.loc[filtered_data.index, 'B.canc'] = tuple(B_canc)
+        self.Data.loc[filtered_data.index, 'B.canc.mag'] = np.linalg.norm(B_canc)
+
+    # save the RMF flux of one point into the dataframe
+    def save_RMF_flux(self, coordinates: tuple, FP_direction: tuple, B_RMF: ndarray):
+        # define the key to the datapoint
+        key = coordinates + FP_direction
+
+        # check if index already exist, create values if empty
+        if key not in self.Data.index: # Initialize row
+            self.Data.loc[key] = [None] * len(self.Data.columns)
+
+        # save the flux and flux mag into the dataframe
+        self.Data.at[key, 'B.RMF'] = tuple(B_RMF)
+        self.Data.at[key, 'B.RMF.mag'] = np.linalg.norm(B_RMF)
+
+    # save the information on if the point is rotating or not
+    def save_is_rot(self, coordinates: tuple, mode: str = 'Mag'):
+        # save the bool value of the local information about the micro-robots behaviour
+        value = self.get_is_rotating(coordinates, mode=mode)
+
+        # Select all rows where (x, y, z) match coordinates
+        filtered_data = self.Data.xs(coordinates, level=["x", "y", "z"])
+
+        # A# save the flux and flux mag into the dataframe for all matching indices
+        self.Data.loc[filtered_data.index, 'is.rot'] = value
+
+    # save the cancellation field flux into the dataframe
+    def save_canc_field(self):
+        # get volume of interest
         X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
-        vol_rot = np.zeros((X.shape[0], X.shape[1], X.shape[2]))
 
-        for x in range(X.shape[0]): # loop over every point in volume
-            for y in range(Y.shape[1]):
-                for z in range(Z.shape[2]):
-                    o_point = np.array([X[x,y,z], Y[x,y,z], Z[x,y,z]]) # define the point of interest
-                    vol_rot[x,y,z] = self.check_is_rotating_mag(o_point) # evaluate if micro-robots are rotating
-
-        return vol_rot
-
-    ### Calculate the flux fields generated by the system
-
-    # Calculate the static cancellation field for a volume
-    def get_canc_field(self) -> ndarray:
-        # get the volume of interest (ij indexing)
-        X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
-        # initialise variable that stores the flux magnitudes
-        B = np.zeros((X.shape[0], X.shape[1], X.shape[2], 3))
+        # get the cancellation flux for volume of interest
+        B_canc = self.get_canc_field(X, Y, Z)
 
         for x in range(X.shape[0]):  # loop over every point in volume
             for y in range(Y.shape[1]):
                 for z in range(Z.shape[2]):
-                    o_point = np.array([X[x, y, z], Y[x, y, z], Z[x, y, z]])  # define the point of interest
-                    B[x, y, z] = self.get_canc_flux(o_point)  # get the cancellation field flux
+                    coordinates = X[x,y,z], Y[x,y,z], Z[x,y,z]
+                    self.save_canc_flux(coordinates, B_canc[x,y,z])
 
-        return B
+    # save the RMF field flux for one focus point RMF flux direction into the dataframe
+    def save_RMF_field(self, FP_direction: ndarray):
+        # get volume of interest
+        X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
+
+        # get the current required for the desired flux direction at FP
+        current = self.get_B_flux_gen_current(FP_direction)
+        # get the RMF flux for volume of interest
+        B_RMF = self.get_RMF_field(current, X, Y, Z)
+
+        for x in range(X.shape[0]):  # loop over every point in volume
+            for y in range(Y.shape[1]):
+                for z in range(Z.shape[2]):
+                    coordinates = X[x, y, z], Y[x, y, z], Z[x, y, z]
+                    self.save_RMF_flux(coordinates, tuple(FP_direction), B_RMF[x,y,z])
+
+    # save the information on if the point is rotating or not
+    def save_is_rot_field(self, mode: str = 'Mag'):
+        # get volume of interest
+        X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
+
+        for x in range(X.shape[0]):  # loop over every point in volume
+            for y in range(Y.shape[1]):
+                for z in range(Z.shape[2]):
+                    coordinates = X[x, y, z], Y[x, y, z], Z[x, y, z]
+                    self.save_is_rot(coordinates, mode=mode)
+
+    # export the gathered data into a csv file
+    def export_to_csv(self):
+        # Create the 'data' folder if it doesn't exist
+        folder = "data"
+        os.makedirs(folder, exist_ok=True)
+
+        # Format today's date for the filename
+        today_date = datetime.today().strftime("%Y-%m-%d")
+        filename = f"{today_date}.csv"
+        path = os.path.join(folder, filename)
+
+        # Save the DataFrame as a CSV file
+        self.Data.to_csv(path)
 
     ### Calculate the forces acting within the actuation system ###

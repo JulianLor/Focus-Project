@@ -43,10 +43,8 @@ class PermanentMagnet:
         self.magnet_moment = magnet_moment
 
     # adapt the magnet's FEM cube size
-    def set_cube_size(self, cube_size: float):
-        # set cube size / or base cube size if no entry is done
-        if cube_size == 0:
-            cube_size = 0.01
+    def set_cube_size(self, cube_size: float = 0.01):
+        # set cube size
         self.cube_size = cube_size
         # update the magnetisation according to the new cube size
         self.set_magnetisation()
@@ -71,8 +69,7 @@ class PermanentMagnet:
     # calculate the volume based on the FEM size of a cube
     def get_volume_FEM(self) -> float:
         if not self.check_attrib('cube_size'): # check whether the FEM cube size is defined, exit if needed
-            print('FEM cube size is not defined')
-            sys.exit()
+            self.set_cube_size()
 
         vol = self.cube_size ** 3
         return vol
@@ -106,14 +103,13 @@ class PermanentMagnet:
             n = round(self.get_volume_magnet() / self.cube_size ** 3, 0)
             return int(n)
         else:
-            print('FEM dimensions do not work out')
-            sys.exit()
+            sys.exit('FEM dimensions do not work out')
 
     # create the FEM magnet centers
     def divide_magnet(self) -> ndarray:
         # check if cube size is already defined, do so if necessary
         if not self.check_attrib('cube_size'):
-            self.set_cube_size(0)
+            self.set_cube_size()
         # calculate range of x, y, and z-coordinates
         half_dimensions = self.magnet_dim / 2
         magnet_min = self.pos - half_dimensions + self.cube_size / 2
@@ -138,8 +134,7 @@ class PermanentMagnet:
         elif mode == 'Magnet':
             vol = self.get_volume_magnet()
         else:
-            print('Invalid mode')
-            sys.exit()
+            sys.exit('Invalid mode')
 
         # multiply the volume with the moment vector given by method
         magnetisation = vol * self.get_moment_vector()

@@ -136,3 +136,23 @@ def get_volume(x_0: float, x_l: float, x_d: float, y_0: float, y_l: float, y_d: 
     # combine into common 3D space with ij indexing
     X, Y, Z = np.meshgrid(x_vals, y_vals, z_vals, indexing="ij")
     return X, Y, Z
+
+# Rule from 'Spatially selective delivery of living magnetic micro-robots through torque-focusing.' paper
+def check_is_rotating_mag(B_RMF: ndarray, B_canc: ndarray) -> bool:
+    # get the magnitude of the cancellation field at the point in space
+    B_canc_mag = np.linalg.norm(B_canc)
+    # get the averaged magnitude of the cancellation field at the point in space
+    B_RMF_mag = np.average(np.linalg.norm(B_RMF, axis=0))
+
+    # return a boolean variable describing the rotation state
+    return B_RMF_mag > B_canc_mag * 2
+
+# Rule from 'Theoretical Considerations for the Effect of Rotating Magnetic Field Shape on the Workspace of Magnetic micro-robots.' paper
+def check_is_rotating_RMF(B_RMF) -> bool:
+    # get the magnitude of the RMF flux vector at point in space
+    B_RMF_mag = np.linalg.norm(B_RMF, axis=0)
+    # define the minimal and maximal axis of the elliptical RMF flux
+    a = np.min(B_RMF_mag)
+    b = np.max(B_RMF_mag)
+    # compare its area to the minimal required area of circular shape which we define to be 1mT as radius
+    return  get_area_ellipse(a, b) > np.pi
