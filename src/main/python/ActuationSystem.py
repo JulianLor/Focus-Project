@@ -2,8 +2,8 @@ import sys
 import numpy as np
 import pandas as pd
 import os
+import datetime
 from numpy import ndarray
-from datetime import datetime
 
 from src.main.python.Helper_functions import (get_time_steps, get_inverse, check_is_rotating_mag, check_is_rotating_RMF,
                                               rotate_vector, get_volume)
@@ -43,6 +43,7 @@ class ActuationSystem:
         self.pos_PermMagnet = pos_PermMagnet
         index = pd.MultiIndex.from_tuples([], names=["x", "y", "z", "fp_x", "fp_y", "fp_z"])
         self.Data = pd.DataFrame(columns=['B.tot', 'B.tot.mag', 'B.canc', 'B.canc.mag', 'B.RMF', 'B.RMF.mag', 'is.rot'], index=index)
+        self.Data[['B.tot', 'B.canc', 'B.RMF']] = self.Data[['B.tot', 'B.canc', 'B.RMF']].astype(object)
 
     ### adapt the Actuation System's attributes ###
 
@@ -55,7 +56,7 @@ class ActuationSystem:
         self.N_PermMagnet = N_PermMagnet
 
     # adapt the Actuation System's position of Electromagnets
-    def set_pos_ElectroMagnet(self, pos_ElectroMagnet: ndarray):
+    def set_pos_ElectroMagnet(self, pos_ElectroMagnet: tuple):
         self.pos_ElectroMagnet = pos_ElectroMagnet
 
     # adapt the Actuation System's position of Permanent Magnets
@@ -273,11 +274,11 @@ class ActuationSystem:
     # set the Matrix to get the currents based on the expected B-flux at the Focus-Point
     def set_transformation_Matrix(self):
         # Based on the assumption that M x I = B, we want to find the pseudo-inverse M+ so that M+ x B = I
-        a = np.sin(self.pos_ElectroMagnet[2][0]) # vector composition of B-flux single electromagnet
-        b = np.cos(self.pos_ElectroMagnet[2][0])
+        a = np.sin(self.pos_ElectroMagnet[0][2]) # vector composition of B-flux single electromagnet
+        b = np.cos(self.pos_ElectroMagnet[0][2])
         # define the transformation matrix based on the electromagnets relative position
-        M = np.array([[a, -a, 0, 0],
-                      [0, 0, a, -a],
+        M = np.array([[a, 0, -a, 0],
+                      [0, a, 0, -a],
                       [b, b, b, b]])
         # get the pseudo-inverse Matrix by Singular Value Decomposition
         self.Matrix = get_inverse(M)
@@ -299,11 +300,14 @@ class ActuationSystem:
     def get_is_rotating(self, coordinates: tuple, mode: str = 'Mag') -> bool:
         # look for the subset of data with the matching coordinates
         subset = self.Data.xs(coordinates, level=["x", "y", "z"])
+
         # if there are less 10 datapoints no proper analysis can be done
         if subset.shape[0] < int(fps / self.FREQ):
-            sys.exit('To little data to analyse rotating volume')
+            sys.exit('Too little data to analyse rotating volume')
+
         B_canc = subset.iloc[0]['B.canc.mag']
-        B_RMF = subset.iloc['B.RMF.mag']
+        B_RMF = subset['B.RMF.mag']
+
         if mode == 'Mag':
             return check_is_rotating_mag(B_RMF, B_canc)
         elif mode == 'RMF':
@@ -317,11 +321,15 @@ class ActuationSystem:
     # save the cancellation flux of one point into the dataframe
     def save_canc_flux(self, coordinates: tuple, B_canc: ndarray):
         # Select all rows where (x, y, z) match coordinates
-        filtered_data = self.Data.xs(coordinates, level=['x', 'y', 'z'])
+        mask = (
+                (self.Data.index.get_level_values("x") - coordinates[0] < 1e-6) &
+                (self.Data.index.get_level_values("y") - coordinates[1] < 1e-6) &
+                (self.Data.index.get_level_values("z") - coordinates[2] < 1e-6)
+        )
 
-        # A# save the flux and flux mag into the dataframe for all matching indices
-        self.Data.loc[filtered_data.index, 'B.canc'] = tuple(B_canc)
-        self.Data.loc[filtered_data.index, 'B.canc.mag'] = np.linalg.norm(B_canc)
+        # save the flux and flux mag into the dataframe for all matching indices
+        ###self.Data.loc[mask, 'B.canc'] = [B_canc] * mask.sum()###
+        self.Data.loc[mask, 'B.canc.mag'] = round(np.linalg.norm(B_canc), 6)
 
     # save the RMF flux of one point into the dataframe
     def save_RMF_flux(self, coordinates: tuple, FP_direction: tuple, B_RMF: ndarray):
@@ -333,8 +341,8 @@ class ActuationSystem:
             self.Data.loc[key] = [None] * len(self.Data.columns)
 
         # save the flux and flux mag into the dataframe
-        self.Data.at[key, 'B.RMF'] = tuple(B_RMF)
-        self.Data.at[key, 'B.RMF.mag'] = np.linalg.norm(B_RMF)
+        self.Data.at[key, 'B.RMF'] = B_RMF
+        self.Data.at[key, 'B.RMF.mag'] = round(np.linalg.norm(B_RMF), 6)
 
     # save the information on if the point is rotating or not
     def save_is_rot(self, coordinates: tuple, mode: str = 'Mag'):
@@ -342,10 +350,14 @@ class ActuationSystem:
         value = self.get_is_rotating(coordinates, mode=mode)
 
         # Select all rows where (x, y, z) match coordinates
-        filtered_data = self.Data.xs(coordinates, level=["x", "y", "z"])
+        mask = (
+                (self.Data.index.get_level_values("x") - coordinates[0] < 1e-6) &
+                (self.Data.index.get_level_values("y") - coordinates[1] < 1e-6) &
+                (self.Data.index.get_level_values("z") - coordinates[2] < 1e-6)
+        )
 
         # A# save the flux and flux mag into the dataframe for all matching indices
-        self.Data.loc[filtered_data.index, 'is.rot'] = value
+        self.Data.loc[mask, 'is.rot'] = value
 
     # save the cancellation field flux into the dataframe
     def save_canc_field(self):
@@ -358,8 +370,8 @@ class ActuationSystem:
         for x in range(X.shape[0]):  # loop over every point in volume
             for y in range(Y.shape[1]):
                 for z in range(Z.shape[2]):
-                    coordinates = X[x,y,z], Y[x,y,z], Z[x,y,z]
-                    self.save_canc_flux(coordinates, B_canc[x,y,z])
+                    coordinates = np.round(np.array([X[x, y, z], Y[x, y, z], Z[x, y, z]]), decimals=6)
+                    self.save_canc_flux(tuple(coordinates), B_canc[x,y,z])
 
     # save the RMF field flux for one focus point RMF flux direction into the dataframe
     def save_RMF_field(self, FP_direction: ndarray):
@@ -370,12 +382,13 @@ class ActuationSystem:
         current = self.get_B_flux_gen_current(FP_direction)
         # get the RMF flux for volume of interest
         B_RMF = self.get_RMF_field(current, X, Y, Z)
-
+        # round the entry of the FP_direction array to later avoid indexing errors
+        FP_direction = np.round(FP_direction, decimals=6)
         for x in range(X.shape[0]):  # loop over every point in volume
             for y in range(Y.shape[1]):
                 for z in range(Z.shape[2]):
-                    coordinates = X[x, y, z], Y[x, y, z], Z[x, y, z]
-                    self.save_RMF_flux(coordinates, tuple(FP_direction), B_RMF[x,y,z])
+                    coordinates = np.round(np.array([X[x, y, z], Y[x, y, z], Z[x, y, z]]), decimals=6)
+                    self.save_RMF_flux(tuple(coordinates), tuple(FP_direction), B_RMF[x,y,z])
 
     # save the information on if the point is rotating or not
     def save_is_rot_field(self, mode: str = 'Mag'):
@@ -385,8 +398,8 @@ class ActuationSystem:
         for x in range(X.shape[0]):  # loop over every point in volume
             for y in range(Y.shape[1]):
                 for z in range(Z.shape[2]):
-                    coordinates = X[x, y, z], Y[x, y, z], Z[x, y, z]
-                    self.save_is_rot(coordinates, mode=mode)
+                    coordinates = np.round(np.array([X[x, y, z], Y[x, y, z], Z[x, y, z]]), decimals=6)
+                    self.save_is_rot(tuple(coordinates), mode=mode)
 
     # export the gathered data into a csv file
     def export_to_csv(self):
@@ -395,8 +408,8 @@ class ActuationSystem:
         os.makedirs(folder, exist_ok=True)
 
         # Format today's date for the filename
-        today_date = datetime.today().strftime("%Y-%m-%d")
-        filename = f"{today_date}.csv"
+        time_stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{time_stamp}.csv"
         path = os.path.join(folder, filename)
 
         # Save the DataFrame as a CSV file

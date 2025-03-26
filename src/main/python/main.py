@@ -1,13 +1,5 @@
-from Vector_Field_Animation import (setup_animation_frames, create_video_from_frames, run_multiprocessing,
-                                    calc_base_B_field, calc_timed_B_field)
-from B_field_analysis import B_field_analysis
-from config import time_steps, output_folder, distance, offset, density, Grid_density, Grid_size
-import time
 import numpy as np
-from Permanent_Magnet_model import generate_animation_frames_pmodel, create_video_from_frames_pmodel
-from Cancellation import cancellation_field, plotting_canc_field, plot_canc_field_z_axis
-from src.main.python.Helper_functions import get_volume
-
+import multiprocessing as mp
 from src.main.python.ActuationSystem import ActuationSystem
 from src.main.python.Electromagnet import Electromagnet
 from src.main.python.PermanentMagnet import PermanentMagnet
@@ -58,34 +50,61 @@ B_fields_canc = cancellation_field()
 plotting_canc_field(B_fields_canc)
 """
 
-# setup of actuation system parameters
-a = 0.155
-b = np.sqrt(2) * 0.285 / 2
-c = 0.105
-pos_PermMagnets = np.array([[a, 0, c], [b, b, c], [0, a, c], [-b, b, c], [-a, -0, c], [-b,-b,c], [0, -a,c], [b, -b, c]])
-pos_ElectroMagnet = [0.18, 'y', np.pi / 4], [0.18, 'x', -np.pi / 4], [0.18, 'y', -np.pi / 4], [0.18, 'x', np.pi / 4]
-# create system
-System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
-
-# save the RMF system into the dataframe for a time period of 1s
-B_flux_direction_sim = System.get_B_flux_direction_sim()
-for time in range(B_flux_direction_sim.shape[0]):
-    System.save_RMF_field(B_flux_direction_sim[time])
-    print(f'Successfully saved {time+1} of {B_flux_direction_sim.shape[0]} total steps')
+# setup of multiprocessing for RMF saving
+def mp_save_RMF_field(time_step):
+    # Save the RMF field for the given time step
+    System.save_RMF_field(B_flux_direction_sim[time_step])
+    # Print progress (note: prints from multiple processes may interleave)
+    print(f'Successfully saved {time_step + 1} of {total_steps} total steps')
 
 # export dataframe as csv
-System.export_to_csv()
+def export_csv():
+    System.export_to_csv() # export the dataframe csv
+    print('Successfully exported as csv')
 
-# save the canc system into the dataframe
-System.save_canc_field()
-print('Successfully saved cancellation field')
+# function to save canc field
+def save_canc_field():
+    # save the canc system into the dataframe
+    System.save_canc_field()
+    print('Successfully saved cancellation field')
 
-# save if points are rotating or not into the dataframe
-System.save_is_rot_field()
-print('Successfully saved is_rot_field field')
+# function to save is_rot field
+def save_is_rot_field():
+    # save if points are rotating or not into the dataframe
+    System.save_is_rot_field()
+    print('Successfully saved is_rot_field field')
 
-# export dataframe as csv
-System.export_to_csv()
+if __name__ == "__main__":
+    # setup of actuation system parameters
+    a = 0.155
+    b = np.sqrt(2) * 0.285 / 2
+    c = 0.105
+    pos_PermMagnets = np.array(
+        [[a, 0, c], [b, b, c], [0, a, c], [-b, b, c], [-a, -0, c], [-b, -b, c], [0, -a, c], [b, -b, c]])
+    pos_ElectroMagnet = [0.18, 'y', np.pi / 4], [0.18, 'x', -np.pi / 4], [0.18, 'y', -np.pi / 4], [0.18, 'x', np.pi / 4]
+    # create system
+    System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
+
+    # save the RMF system into the dataframe for a time period of 1s
+    B_flux_direction_sim = System.get_B_flux_direction_sim()
+    total_steps = B_flux_direction_sim.shape[0]
+    for time in range(total_steps):
+        mp_save_RMF_field(time)
+    """""
+    # start the multiprocessing
+    with mp.Pool() as pool:
+        pool.map(mp_save_RMF_field, range(total_steps))
+    """""
+    export_csv()
+
+    save_canc_field()
+
+    export_csv()
+
+    save_is_rot_field()
+
+    export_csv()
+
 
 
 

@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import os, vtk
 from PIL import Image
 from mayavi import mlab
+import seaborn as sns
+import pandas as pd
 
 # plotting various amounts of solenoids (up to 4)
 def plot_solenoids_flex(*solenoids: ndarray):
@@ -136,3 +138,152 @@ def display_boolean_volume(X: ndarray, Y: ndarray, Z: ndarray, boolean_mask: nda
     renderer.SetBackground(0.1, 0.1, 0.1)  # Dark background
     render_window.Render()
     interactor.Start()
+
+def count_plot():
+    # Define paths
+    data_path = "./data/2025-03-26_09-31-45.csv"
+    save_dir = "../python/data/"
+    save_path = os.path.join(save_dir, "Number_of_points_rotating.png")
+
+    # Ensure the save directory exists
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Load data
+    data = pd.read_csv(data_path)
+    data.info()
+
+    # filter data for plotting
+    data_filtered = data.drop_duplicates(subset=['x', 'y', 'z'], keep='first')
+
+    # Plot count of rotating points
+    plt.figure(figsize=(8, 8))
+    ax = sns.countplot(
+        data=data_filtered,
+        x='is.rot'
+    )
+
+    # Define custom labels
+    custom_labels = {False: 'Not Rotating', True: 'Rotating'}
+    # Rename x-axis labels
+    ax.set_xticklabels([custom_labels[val] for val in sorted(data_filtered['is.rot'].unique())])
+
+    # Set title and labels
+    ax.set(
+        title='Number of data points rotating',
+        ylabel='Count'
+    )
+
+    # Save plot
+    plt.savefig(save_path)
+    print(f"Plot saved to {save_path}")
+
+def progression_plot():
+    # Define paths
+    data_path = "./data/2025-03-26_09-31-45.csv"
+    save_dir = "../python/data/"
+    save_path = os.path.join(save_dir, "Cancellation_RMF_magnitude_plot.png")
+
+    # Ensure the save directory exists
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Load data
+    data = pd.read_csv(data_path)
+    data.info()
+
+    # filter the data for only z axis points
+    data_filtered = data.loc[(data['x'] == 0) & (data['y'] == 0)]
+
+    # Plot count of rotating points
+    plt.figure(figsize=(8, 8))
+    ax = sns.lineplot(
+        data=data_filtered,
+        x='z',
+        y='B.canc.mag',
+        color='red',
+        label='Cancellation',
+        ci=None
+    )
+    ax = sns.lineplot(
+        data=data_filtered,
+        x='z',
+        y='B.RMF.mag',
+        color='blue',
+        label='RMF',
+        ci=None
+    )
+
+    # Set title and labels
+    ax.set(
+        title='Magnitude of Cancellation & RMF Field',
+        xlabel='Z',
+        ylabel='Tesla',
+    )
+
+    # Save plot
+    plt.savefig(save_path)
+    print(f"Plot saved to {save_path}")
+
+def volume_plot():
+    # Define paths
+    data_path = "./data/2025-03-26_09-31-45.csv"
+    save_dir = "../python/data/"
+    save_path = os.path.join(save_dir, "Volume_plot.png")
+
+    # Ensure the save directory exists
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Load data
+    data = pd.read_csv(data_path)
+    data.info()
+
+    # filter data for plotting
+    data_filtered = data.drop_duplicates(subset=['x', 'y', 'z'], keep='first')
+
+    # determine grid dimensions of dataset
+    x_min, x_max = data_filtered['x'].min(), data_filtered['x'].max()
+    y_min, y_max = data_filtered['y'].min(), data_filtered['y'].max()
+    z_min, z_max = data_filtered['z'].min(), data_filtered['z'].max()
+
+    # define a resolution for discretising the coords
+    res = 0.01
+
+    # setup grid for plotting
+    grid_shape = (
+        int(round((x_max - x_min) / res)) + 1,
+        int(round((y_max - y_min) / res)) + 1,
+        int(round((z_max - z_min) / res)) + 1
+    )
+    grid = np.zeros(shape=grid_shape, dtype=bool)
+    colors = np.full(grid_shape, None, dtype=object)
+
+    # fill the information into the grid
+    for _, row in data_filtered.iterrows():
+        xi = int(round((row['x'] - x_min) / res))
+        yi = int(round((row['y'] - x_min) / res))
+        zi = int(round((row['z'] - x_min) / res))
+        if row['is.rot']:
+            grid[xi, yi, zi] = True
+            colors[xi, yi, zi] = 'green'
+
+    # create 3D figure
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+    # Create 3D plot using voxels
+    ax.voxels(
+        grid,
+        facecolors=colors,
+        edgecolors='k',
+        alpha=0.5
+    )
+
+    ax.set(
+        title='Operating Volume',
+        xlabel='X',
+        ylabel='Y',
+        zlabel='Z',
+    )
+
+    # Save plot
+    plt.savefig(save_path)
+    print(f"Plot saved to {save_path}")
