@@ -141,8 +141,8 @@ def display_boolean_volume(X: ndarray, Y: ndarray, Z: ndarray, boolean_mask: nda
 
 def count_plot():
     # Define paths
-    data_path = "./data/2025-03-26_09-31-45.csv"
-    save_dir = "../python/data/"
+    data_path = "data/data_sets/2025-03-28_08-04-36.csv"
+    save_dir = "../python/data/output/"
     save_path = os.path.join(save_dir, "Number_of_points_rotating.png")
 
     # Ensure the save directory exists
@@ -179,8 +179,8 @@ def count_plot():
 
 def progression_plot():
     # Define paths
-    data_path = "./data/2025-03-26_09-31-45.csv"
-    save_dir = "../python/data/"
+    data_path = "data/data_sets/2025-03-28_08-04-36.csv"
+    save_dir = "../python/data/output/"
     save_path = os.path.join(save_dir, "Cancellation_RMF_magnitude_plot.png")
 
     # Ensure the save directory exists
@@ -225,8 +225,8 @@ def progression_plot():
 
 def volume_plot():
     # Define paths
-    data_path = "./data/2025-03-26_09-31-45.csv"
-    save_dir = "../python/data/"
+    data_path = "data/data_sets/2025-03-28_08-04-36.csv"
+    save_dir = "../python/data/output/"
     save_path = os.path.join(save_dir, "Volume_plot.png")
 
     # Ensure the save directory exists
@@ -287,3 +287,7 @@ def volume_plot():
     # Save plot
     plt.savefig(save_path)
     print(f"Plot saved to {save_path}")
+
+progression_plot()
+volume_plot()
+count_plot()

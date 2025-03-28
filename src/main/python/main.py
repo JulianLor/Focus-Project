@@ -4,6 +4,8 @@ from src.main.python.ActuationSystem import ActuationSystem
 from src.main.python.Electromagnet import Electromagnet
 from src.main.python.PermanentMagnet import PermanentMagnet
 from src.main.python.Visualisation import plot_magnetic_field
+from src.main.python.Helper_functions import get_volume
+from src.main.resources.config import offset, distance, density
 
 """
 # run the multiprocessing
@@ -50,12 +52,24 @@ B_fields_canc = cancellation_field()
 plotting_canc_field(B_fields_canc)
 """
 
-# setup of multiprocessing for RMF saving
-def mp_save_RMF_field(time_step):
-    # Save the RMF field for the given time step
-    System.save_RMF_field(B_flux_direction_sim[time_step])
-    # Print progress (note: prints from multiple processes may interleave)
-    print(f'Successfully saved {time_step + 1} of {total_steps} total steps')
+# function to save RMF field
+def save_RMF_field(RMF_field_sing):
+    B_flux_direction_sim = System.get_B_flux_direction_sim()
+    total_steps = B_flux_direction_sim.shape[0]
+    for time_step in range(total_steps):
+        # Save the RMF field for the given time step
+        System.save_RMF_field(B_flux_direction_sim[time_step], RMF_field_sing)
+        # Print progress (note: prints from multiple processes may interleave)
+        print(f'Successfully saved {time_step + 1} of {total_steps} total steps')
+
+def get_RMF_field_sing():
+    X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
+    RMF_field_sing = np.zeros((4, X.shape[0], X.shape[1], X.shape[2], 3))
+    for idx in range(4):
+        RMF_field_sing[idx] = System.get_electromagnet_field(idx, X, Y, Z)
+        print(f'Successfully saved {idx + 1} of {4} total electromagnet fields')
+
+    return RMF_field_sing
 
 # export dataframe as csv
 def export_csv():
@@ -78,23 +92,17 @@ if __name__ == "__main__":
     # setup of actuation system parameters
     a = 0.155
     b = np.sqrt(2) * 0.285 / 2
-    c = 0.105
+    c = 0.115
     pos_PermMagnets = np.array(
         [[a, 0, c], [b, b, c], [0, a, c], [-b, b, c], [-a, -0, c], [-b, -b, c], [0, -a, c], [b, -b, c]])
     pos_ElectroMagnet = [0.18, 'y', np.pi / 4], [0.18, 'x', -np.pi / 4], [0.18, 'y', -np.pi / 4], [0.18, 'x', np.pi / 4]
     # create system
     System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
 
-    # save the RMF system into the dataframe for a time period of 1s
-    B_flux_direction_sim = System.get_B_flux_direction_sim()
-    total_steps = B_flux_direction_sim.shape[0]
-    for time in range(total_steps):
-        mp_save_RMF_field(time)
-    """""
-    # start the multiprocessing
-    with mp.Pool() as pool:
-        pool.map(mp_save_RMF_field, range(total_steps))
-    """""
+    RMF_field_sing = get_RMF_field_sing()
+
+    save_RMF_field(RMF_field_sing)
+
     export_csv()
 
     save_canc_field()
