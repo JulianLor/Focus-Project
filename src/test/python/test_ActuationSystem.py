@@ -5,7 +5,7 @@ from src.main.python.Electromagnet import Electromagnet
 from src.main.python.PermanentMagnet import PermanentMagnet
 from src.main.python.ActuationSystem import ActuationSystem
 
-class TestElectromagnet(unittest.TestCase):
+class TestActuationSystem(unittest.TestCase):
 
     def setUp(self):
         pass
@@ -226,7 +226,7 @@ class TestElectromagnet(unittest.TestCase):
         test = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnet)
 
         # get the result that is being verified
-        test.set_Electromagnet_param(200, 0.05, 0.03)
+        test.set_Electromagnet_param(400, 0.05, 0.03)
         test.generate_Electromagnets()
         result = test.get_RMF_flux(np.array([1,1,1,1]), np.array([0,0,0]))
 
@@ -236,8 +236,9 @@ class TestElectromagnet(unittest.TestCase):
         # check result with predicted result
         prediction = np.array([0, 0, 0])
         for i in range(4):
-            prediction_magnet = Electromagnet(0.11, angle_Electromagnets[i], 200, 0.05, 0.03)
+            prediction_magnet = Electromagnet(0.11, angle_Electromagnets[i], 400, 0.05, 0.03)
             prediction_magnet.set_solenoid_current(1.0)
+            prediction_magnet.save_solenoid_all()
             prediction = np.add(prediction, prediction_magnet.get_solenoid_B_flux(np.array([0, 0, 0])))
         assert_array_almost_equal(result, prediction)
 

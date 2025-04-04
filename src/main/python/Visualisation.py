@@ -1,11 +1,53 @@
 import numpy as np
 from numpy import ndarray
 import matplotlib.pyplot as plt
-import os, vtk
+from mpl_toolkits.mplot3d import Axes3D
+import os
 from PIL import Image
 from mayavi import mlab
 import seaborn as sns
 import pandas as pd
+
+# plot a 3D vector field using quiver
+def plot_magnetic_field_3D(X:ndarray, Y:ndarray, Z:ndarray, Bx:ndarray, By:ndarray, Bz:ndarray, Name:str):
+    save_dir = "../python/data/output/"
+    save_path = os.path.join(save_dir,f'Magnetic_Field_3D_{Name}.png')
+
+    # set up the normalised vectors
+    Bx_norm = np.zeros(Bx.shape)
+    By_norm = np.zeros(By.shape)
+    Bz_norm = np.zeros(Bz.shape)
+
+    # normalise vectors for quiver
+    for x in range(X.shape[0]):
+        for y in range(X.shape[1]):
+            for z in range(X.shape[2]):
+                B_mag = np.linalg.norm(np.array([Bx[x,y,z], By[x,y,z], Bz[x,y,z]]))
+                Bx_norm[x,y,z] = Bx[x,y,z] / B_mag
+                By_norm[x,y,z] = By[x,y,z] / B_mag
+                Bz_norm[x,y,z] = Bz[x,y,z] / B_mag
+
+    # create 3D figure
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+    # Plot vector field
+    ax.quiver(X, Y, Z, Bx_norm, By_norm, Bz_norm,
+        length=0.001,
+        normalize=True,
+        cmap='viridis'
+    )
+
+    ax.set(
+        title='Magnetic Field 3D',
+        xlabel='X',
+        ylabel='Y',
+        zlabel='Z',
+    )
+
+    # Save plot
+    plt.savefig(save_path)
+    print(f"Plot saved to {save_path}")
 
 # plotting various amounts of solenoids (up to 4)
 def plot_solenoids_flex(*solenoids: ndarray):
@@ -38,7 +80,7 @@ def plot_solenoids_flex(*solenoids: ndarray):
     plt.show()
 
 # Plot and save each frame
-def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
+def plot_magnetic_field(x, y, z, Bx, By, Bz, Name):
     B_magnitude = np.sqrt(Bx ** 2 + By ** 2 + Bz ** 2)
     Bx_plot = np.zeros((Bx.shape))
     By_plot = np.zeros((By.shape))
@@ -60,7 +102,7 @@ def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
     quiver = mlab.quiver3d(x, y, z, Bx_plot, By_plot, Bz_plot, scalars=B_magnitude, scale_factor=15, colormap='jet')
     mlab.view(azimuth=45, elevation=45, distance=3)
     mlab.colorbar(quiver, title="Field Magnitude", orientation='vertical')
-    mlab.title(f"Magnetic Field of Cancellation Field {step}", size=0.2)
+    mlab.title(f"Magnetic Field of {Name}", size=0.2)
 
     # Find the vector magnitude at the origin
     origin_index = np.argmin(np.abs(x) + np.abs(y) + np.abs(z))  # Closest index to origin
@@ -74,74 +116,18 @@ def plot_magnetic_field(x, y, z, Bx, By, Bz, step, output_folder):
     mlab.text3d(origin_coords[0], origin_coords[1], origin_coords[2], text, scale=0.03, color=(0, 0, 0))
 
     # Save the frame as an image
-    frame_filename = os.path.join(output_folder, f"frame_{step:03d}.png")
-    mlab.savefig(frame_filename, size=(1880, 1024))
+    save_dir = "../python/data/output/"
+    save_path = os.path.join(save_dir, f"Magnetic_Field_{Name}.png")
+    mlab.savefig(save_path, size=(1880, 1024))
     mlab.close()
 
     # Verify the saved image size
-    image = Image.open(frame_filename)
-    print(f"Frame {step} saved with dimensions: {image.size}")
-
-# plot rotating volume
-def display_boolean_volume(X: ndarray, Y: ndarray, Z: ndarray, boolean_mask: ndarray):
-    """
-    Visualizes a 3D boolean mask using VTK.
-
-    Parameters:
-        X, Y, Z (numpy arrays): The meshgrid coordinates.
-        boolean_mask (numpy array): A 3D boolean mask (same shape as X, Y, Z).
-    """
-    # Create a vtkImageData object
-    image_data = vtk.vtkImageData()
-    dims = boolean_mask.shape  # Get dimensions of the data
-    image_data.SetDimensions(dims)
-    image_data.SetSpacing(X[1, 0, 0] - X[0, 0, 0], Y[0, 1, 0] - Y[0, 0, 0], Z[0, 0, 1] - Z[0, 0, 0])
-
-    # Create a scalar array to store the boolean values (convert to int for VTK)
-    scalars = vtk.vtkUnsignedCharArray()
-    scalars.SetNumberOfComponents(1)
-    scalars.SetName("BooleanMask")
-
-    # Flatten the data and insert into VTK format
-    for value in boolean_mask.ravel():
-        scalars.InsertNextValue(int(value))  # Convert bool to int (0 or 1)
-
-    # Attach scalars to the image data
-    image_data.GetPointData().SetScalars(scalars)
-
-    # Apply Thresholding to extract 'True' values
-    threshold = vtk.vtkThreshold()
-    threshold.SetInputData(image_data)
-    threshold.ThresholdByUpper(0.5)  # Keep values > 0.5 (True regions)
-
-    # Convert thresholded data into a surface representation
-    geometry_filter = vtk.vtkGeometryFilter()
-    geometry_filter.SetInputConnection(threshold.GetOutputPort())
-
-    # Create a mapper and actor
-    mapper = vtk.vtkPolyDataMapper()
-    mapper.SetInputConnection(geometry_filter.GetOutputPort())
-
-    actor = vtk.vtkActor()
-    actor.SetMapper(mapper)
-    actor.GetProperty().SetColor(1.0, 0.0, 0.0)  # Red color for True regions
-
-    # Create a renderer, render window, and interactor
-    renderer = vtk.vtkRenderer()
-    render_window = vtk.vtkRenderWindow()
-    render_window.AddRenderer(renderer)
-    interactor = vtk.vtkRenderWindowInteractor()
-    interactor.SetRenderWindow(render_window)
-
-    # Add the actor and start rendering
-    renderer.AddActor(actor)
-    renderer.SetBackground(0.1, 0.1, 0.1)  # Dark background
-    render_window.Render()
-    interactor.Start()
+    image = Image.open(save_path)
+    print(f"Frame saved with dimensions: {image.size}")
 
 def count_plot():
     # Define paths
-    data_path = "data/data_sets/2025-03-28_08-04-36.csv"
+    data_path = "data/data_sets/2025-03-28_09-01-08.csv"
     save_dir = "../python/data/output/"
     save_path = os.path.join(save_dir, "Number_of_points_rotating.png")
 
@@ -179,7 +165,7 @@ def count_plot():
 
 def progression_plot():
     # Define paths
-    data_path = "data/data_sets/2025-03-28_08-04-36.csv"
+    data_path = "data/data_sets/2025-03-28_09-01-08.csv"
     save_dir = "../python/data/output/"
     save_path = os.path.join(save_dir, "Cancellation_RMF_magnitude_plot.png")
 
@@ -225,7 +211,7 @@ def progression_plot():
 
 def volume_plot():
     # Define paths
-    data_path = "data/data_sets/2025-03-28_08-04-36.csv"
+    data_path = "data/data_sets/2025-03-28_09-01-08.csv"
     save_dir = "../python/data/output/"
     save_path = os.path.join(save_dir, "Volume_plot.png")
 
@@ -287,7 +273,3 @@ def volume_plot():
     # Save plot
     plt.savefig(save_path)
     print(f"Plot saved to {save_path}")
-
-progression_plot()
-volume_plot()
-count_plot()

@@ -81,11 +81,11 @@ def magnetic_force(magnetisation: ndarray, B_grad: ndarray) -> ndarray:
     return force
 
 # uses Biot-Savart Law to calculate a currents B-flux at a point
-def Biot_Savart_Law(r: ndarray, current: ndarray, dl: float) -> ndarray:
+def Biot_Savart_Law(r: ndarray, current: ndarray, dl: float, I_mag) -> ndarray:
     if check_vector_size(r, '<', 0.0001): # avoid division by 0
         return np.array([0, 0, 0])  # To avoid division by zero
-    B = np.linalg.norm(current) * dl * mu_0 * np.cross(current, r) / ((np.linalg.norm(r) ** 3) * 4 * np.pi)
-    return B
+    B = dl * I_mag * mu_0 * np.cross(current, r) / ((np.linalg.norm(r) ** 3) * 4 * np.pi)
+    return np.reshape(B, shape=3)
 
 # uses Lorentz force to calc the force from B-flux on current carrying wire
 def Lorentz_force(I: float, dl: ndarray, B: ndarray) -> ndarray:

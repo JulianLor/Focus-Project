@@ -2,7 +2,7 @@ import numpy as np
 
 # Constants: Coil
 mu_0 = 4 * np.pi * 1e-7  # Permeability of free space (T·m/A)
-N_turns = 300  # Number of turns
+N_turns = 50  # Number of turns
 L = 0.005  # 10 cm length
 R = 0.005  # 2.5 cm radius
 r_c = 0.000675
@@ -26,7 +26,7 @@ shift_distance = 0.2 # distance to focus point
 # Constants: Animation
 output_folder = "frames"  # Folder to save the frames
 video_filename = "magnetic_field_animation_01.mp4"  # Output video filename
-span_of_animation = 2 # length of the animation
+span_of_animation = 5 # length of the animation
 time_steps = span_of_animation * 10 # Number of frames for the animation
 fps = 10
 
@@ -44,6 +44,6 @@ canc_magnet_moment = np.array([0, 0, -1.45/mu_0]) # Magnetization of magnet
 canc_cube_size = 0.01 # FEM smallest magnet size
 
 # Constants Actuation system
-offset = -0.05
-distance = 0.1
+offset = -0.01
+distance = 0.01
 density = 0.01

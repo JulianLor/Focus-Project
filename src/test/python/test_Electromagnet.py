@@ -68,112 +68,208 @@ class TestElectromagnet(unittest.TestCase):
     # testing if the representative length of Electromagnet point is correct
     def test_get_dl(self):
         # setup test instance
-        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+        test = Electromagnet(0.01, ['y', 0], 350, 0.005, 0.01)
         # get the result that is being verified
-        result = test.get_dl(np.array([np.cos(np.pi / 12), 0, np.sin(np.pi / 12)]))
+        result = test.get_dl(0.1)
 
         # check result with predicted result
-        prediction = np.sqrt(2) * np.pi / 50
+        prediction = 2 * np.pi / 500
         self.assertAlmostEqual(result, prediction)
 
-    # testing if the Electromagnet point is being returned correctly
-    def test_get_solenoid_point(self):
+    # testing if the Electromagnet point params is being returned correctly
+    def test_get_point_params(self):
         # setup test instance
         test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
         # get the result that is being verified
-        result = test.get_solenoid_point(np.array([0.02, np.pi / 2, 0.15]))
+        result = test.get_point_params(0, 0, 0)
 
         # check result with predicted result
-        prediction = list(test.rotating_point_to_pos(np.array([0, 0.02, 0.15]), 'normal'))
+        r = 0.005 + (test.d_c / test.n_d) / 2
+        d = 0.01 + (test.l_c / test.n_l) / 2
+        theta = 0
+        prediction = np.array([test.get_dl(r), r, d, theta])
+        assert_array_almost_equal(result, prediction)
+
+    # testing if the Electromagnet point params is being returned correctly
+    def test_get_point_params_2(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_point_params(4, 2, 10)
+
+        # check result with predicted result
+        r = 0.005 + (test.d_c / test.n_d) * 4.5
+        d = 0.01 + (test.l_c / test.n_l) * 2.5
+        theta = (10 / test.POINTS_PER_TURN) * 2 * np.pi
+        prediction = np.array([test.get_dl(r), r, d, theta])
+        assert_array_almost_equal(result, prediction)
+
+    # testing if the point coordinates are returned correctly
+    def test_get_point_coords(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', 0], 350, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_point_coords(np.sqrt(2), np.pi / 4, 0.5)
+
+        # check result with predicted result
+        prediction = np.array([1, 1, 0.5])
+        assert_array_almost_equal(result, prediction)
+
+    # testing if the point coordinates are returned correctly
+    def test_get_point_coords_2(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', np.pi / 2], 350, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_point_coords(1, 0, 0.5)
+
+        # check result with predicted result
+        prediction = np.array([0.5, 0, -1])
+        assert_array_almost_equal(result, prediction)
+
+    # testing if the point coordinates are returned correctly
+    def test_get_point_coords_3(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', np.pi / 4], 350, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_point_coords(1, np.pi/2, np.sqrt(2))
+
+        # check result with predicted result
+        prediction = np.array([1, 1, 1])
         assert_array_almost_equal(result, prediction)
 
     # testing if the current vector is being returned correctly
     def test_get_current_vector(self):
         # setup test instance
-        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+        test = Electromagnet(0.01, ['y', np.pi / 4], 350, 0.005, 0.01)
         # get the result that is being verified
-        result = test.get_current_vector(np.pi / 6)
+        result = test.get_current_vector(0)
 
         # check result with predicted result
-        prediction = list(test.rotating_point_to_pos(np.array([-1 / 2, np.sqrt(3) / 2, 0]), 'normal'))
+        prediction = np.array([0,1,0])
         assert_array_almost_equal(result, prediction)
 
-    # testing if the point parameters are returned correctly
-    def test_get_point_parameters(self):
+    # testing if the looping over the electromagnet works
+    def test_get_current_vector_2(self):
         # setup test instance
-        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+        test = Electromagnet(0.01, ['y', 0], 350, 0.005, 0.01)
         # get the result that is being verified
-        result = test.get_point_parameters(5, 5, 5)
+        result = test.get_current_vector(np.pi / 4)
 
         # check result with predicted result
-        prediction = [test.varying_distance_calc(test.d_c, test.get_n_d(), 5, 'r'),
-                      np.pi / 5,
-                      test.varying_distance_calc(test.l_c, test.get_n_l(), 5, 'd') + test.d_z]
-        assert_array_almost_equal(np.array(result), np.array(prediction))
+        prediction = np.array([-np.sqrt(2)/2, np.sqrt(2)/2, 0])
+        assert_array_almost_equal(result, prediction)
 
     # testing if the looping over the electromagnet works
-    def test_get_solenoid_point_coords_shape(self):
+    def test_get_current_vector_3(self):
         # setup test instance
-        test = Electromagnet(0.01, ['y', np.pi / 6], 350, 0.005, 0.01)
+        test = Electromagnet(0.01, ['y', np.pi/4], 350, 0.005, 0.01)
         # get the result that is being verified
-        result = test.get_solenoid_point_coords()
+        result = test.get_current_vector(np.pi / 4)
 
         # check result with predicted result
-        prediction = np.zeros((test.get_total_points(), 3))
-        assert_array_almost_equal(result.shape, prediction.shape)
+        prediction = np.array([-1/2, np.sqrt(2) / 2, 1/2])
+        assert_array_almost_equal(result, prediction)
+
+    # testing if all point parameters of all the electromagnet's point are returned correctly
+    def test_get_solenoid_params(self):
+        # setup test instance
+        test = Electromagnet(0.01, ['y', np.pi / 4], 1, 0.005, 0.01)
+        # get the result that is being verified
+        result = test.get_solenoid_params()
+
+        # generate prediction
+        prediction = np.zeros((test.POINTS_PER_TURN, 4))
+        for point in range(test.POINTS_PER_TURN):
+            prediction[point] = test.get_point_params(0, 0, point)
+        # check result with predicted result
+        assert_array_almost_equal(result, prediction)
 
     # testing if the B-flux is correctly calculated for single point of electromagnet
     def test_get_B_flux(self):
         # setup test instance
         test = Electromagnet(0.01, ['y', 0], 350, 0.005, 0.01)
+        test.save_solenoid_all()
+        # set the test-electromagnets current to 1 A
+        test.set_solenoid_current(1)
         # get the result that is being verified
-        result = test.get_B_flux(np.array([1, 0, 0]), np.array([1, 0, 1]), np.array([0, 1, 0]))
+        result = test.get_B_flux(np.array([1, 0, 0]), 0)
 
         # check result with predicted result
-        prediction = test.DELTA * Biot_Savart_Law(np.array([0,0,-1]), np.array([0,1,0]), 2 * np.pi / test.POINTS_PER_TURN)
-        assert_array_almost_equal(result.shape, prediction.shape)
+        prediction = test.DELTA * Biot_Savart_Law(np.array([1,0,0]), np.array([0,1,0]), 0.0007121830803688726, 1)
+        assert_array_almost_equal(result, prediction)
+
+    # testing if the system exit is triggered for get_solenoid_B_flux function
+    def test_get_B_flux_2(self):
+        # setup test instance
+        test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+
+        # check if system exit is triggered
+        with self.assertRaises(SystemExit) as cm:
+            test.get_B_flux(np.array([0, 0, 0]), 0)  # Should trigger sys.exit()
+
+        # Check exit code
+        self.assertEqual(cm.exception.code, 'No data defined at index: 0')
+
+    # testing if the system exit is triggered for get_solenoid_B_flux function
+    def test_get_B_flux_3(self):
+        # setup test instance
+        test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+        test.save_solenoid_point_param()
+
+        # check if system exit is triggered
+        with self.assertRaises(SystemExit) as cm:
+            test.get_B_flux(np.array([0, 0, 0]), 0)  # Should trigger sys.exit()
+
+        # Check exit code
+        self.assertEqual(cm.exception.code, 'No current vectors or coords at index: 0')
+
 
     # testing if the B-flux is correctly calculated for the entire electromagnet
     def test_get_solenoid_B_flux(self):
         # setup test instance
         test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+        test.save_solenoid_all()
         # set the test-electromagnets current to 1 A
         test.set_solenoid_current(1)
         # get the result that is being verified
         result = test.get_solenoid_B_flux(np.array([0,0,0]))
 
         # check result with predicted result
-        prediction = test.POINTS_PER_TURN * test.get_B_flux(np.array([0,0,0]), np.array([0.5,0,0]), np.array([0,1,0]))
-        assert_array_almost_equal(result.shape, prediction.shape)
+        prediction = test.POINTS_PER_TURN * test.get_B_flux(np.array([0,0,0]), 0)
+        assert_array_almost_equal(result, prediction)
 
-    # testing if the system exit is triggered for get_solenoid_B_flux function
+    # testing if the B-flux is correctly calculated for the entire electromagnet with significant parameters
     def test_get_solenoid_B_flux_2(self):
         # setup test instance
-        test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+        test = Electromagnet(0, ['y', 0], 400, 0.05, 0.03)
+        test.save_solenoid_all()
+        # set the test-electromagnets current to 5.5 A
+        test.set_solenoid_current(5.5)
+        # get the result that is being verified
+        result = test.get_solenoid_B_flux(np.array([0, 0, -0.14]))
 
-        # check if system exit is triggered
-        with self.assertRaises(SystemExit) as cm:
-            test.get_solenoid_B_flux(np.array([0,0,0]))  # Should trigger sys.exit()
-
-        # Check exit code
-        self.assertEqual(cm.exception.code, 'Current vectors not defined')
+        # check result with predicted result
+        prediction = np.array([0,0,1.059787e-03])
+        assert_array_almost_equal(result, prediction)
 
     # testing if the B-flux is correctly calculated for the entire electromagnet with significant parameters
     def test_get_solenoid_B_flux_3(self):
         # setup test instance
-        test = Electromagnet(0, ['y', 0], 400, 0.05, 0.03)
-        # set the test-electromagnets current to 1 A
+        test = Electromagnet(0.14, ['y', np.pi/4], 400, 0.05, 0.03)
+        test.save_solenoid_all()
+        # set the test-electromagnets current to 5.5 A
         test.set_solenoid_current(5.5)
         # get the result that is being verified
-        result = test.get_solenoid_B_flux(np.array([0, 0, -0.1485]))
+        result = test.get_solenoid_B_flux(np.array([0, 0, 0]))
 
         # check result with predicted result
-        prediction = np.array([0,0,0.0017461])
-        assert_array_almost_equal(result.shape, prediction.shape)
+        prediction = np.array([np.sqrt(2) / 2 * 1.059787e-03, 0, np.sqrt(2) / 2 * 1.059787e-03])
+        assert_array_almost_equal(result, prediction)
 
     def test_lorentz_force_calc(self):
         # setup test instance
         test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
+        test.save_solenoid_all()
         # set the test-electromagnets current to 1 A
         test.set_solenoid_current(1)
         # get the result that is being verified
@@ -181,4 +277,4 @@ class TestElectromagnet(unittest.TestCase):
 
         # check result with predicted result
         prediction = Lorentz_force(1, np.array([0,0.01,0]), test.get_solenoid_B_flux(np.array([0, 0, 0])))
-        assert_array_almost_equal(result.shape, prediction.shape)
+        assert_array_almost_equal(result, prediction)
