@@ -148,3 +148,16 @@ class TestElectromagnet(unittest.TestCase):
         prediction = np.array([0, 0, -1*10**(-7)])
         assert_array_almost_equal(result, prediction)
 
+    # testing if the flux for the entire magnet (FEM method) is returned correctly
+    def test_get_magnet_B_flux(self):
+        # setup test instance
+        test = PermanentMagnet([0, 0, 0], 1000, np.array([0.001, 0.002, 0.001]), ['y', 0])
+        # define the FEM cube_size
+        test.cube_size = 0.001
+        # get the result that is being verified
+        result = test.get_magnet_B_flux(np.array([0.01, 0, 0]))
+
+        # check result with predicted result
+        prediction = test.get_B_flux(np.array([0.01, -0.0005, 0])) * 2
+        assert_array_almost_equal(result, prediction)
+

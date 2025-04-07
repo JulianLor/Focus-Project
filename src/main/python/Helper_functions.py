@@ -148,7 +148,7 @@ def check_is_rotating_mag(B_RMF_mag: ndarray, B_canc_mag: float) -> bool:
 # Rule from 'Theoretical Considerations for the Effect of Rotating Magnetic Field Shape on the Workspace of Magnetic micro-robots.' paper
 def check_is_rotating_RMF(B_RMF_mag) -> bool:
     # define the minimal and maximal axis of the elliptical RMF flux
-    a = np.min(B_RMF_mag)
-    b = np.max(B_RMF_mag)
+    a = np.min(B_RMF_mag) * 1000
+    b = np.max(B_RMF_mag) * 1000
     # compare its area to the minimal required area of circular shape which we define to be 1mT as radius
-    return  get_area_ellipse(a, b) > 0.75 * np.pi
+    return get_area_ellipse(a, b) > 1 * np.pi

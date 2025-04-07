@@ -52,8 +52,6 @@ B_fields_canc = cancellation_field()
 plotting_canc_field(B_fields_canc)
 """
 
-
-
 # function to save RMF field
 def save_RMF_field(RMF_field_sing):
     B_flux_direction_sim = System.get_B_flux_direction_sim()
@@ -69,7 +67,6 @@ def get_RMF_field_sing():
     RMF_field_sing = np.zeros((4, X.shape[0], X.shape[1], X.shape[2], 3))
     for idx in range(4):
         RMF_field_sing[idx, ...] = System.get_electromagnet_field(idx, X, Y, Z)
-        plot_magnetic_field_3D(X, Y, Z, RMF_field_sing[idx,...,0], RMF_field_sing[idx,...,1], RMF_field_sing[idx,...,2], f'Electromagnet_{idx+1}')
         print(f'Successfully saved {idx + 1} of {4} total electromagnet fields')
 
     return RMF_field_sing
@@ -88,19 +85,21 @@ def save_canc_field():
 # function to save is_rot field
 def save_is_rot_field():
     # save if points are rotating or not into the dataframe
-    System.save_is_rot_field()
+    System.save_is_rot_field(mode='Mag & RMF')
     print('Successfully saved is_rot_field field')
 
 if __name__ == "__main__":
     # setup of actuation system parameters
-    a = 0.155
-    b = np.sqrt(2) * 0.285 / 2
-    c = 0.115
+    a = 0.16
+    b = (np.sqrt(2) / 2) * 0.16
+    c = 0.105
     pos_PermMagnets = np.array(
         [[a, 0, c], [b, b, c], [0, a, c], [-b, b, c], [-a, -0, c], [-b, -b, c], [0, -a, c], [b, -b, c]])
     pos_ElectroMagnet = [0.14, 'y', np.pi / 4], [0.14, 'x', -np.pi / 4], [0.14, 'y', -np.pi / 4], [0.14, 'x', np.pi / 4]
     # create system
     System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
+
+    System.Data = pd.read_csv("data/data_sets/2025-04-07_09-33-32.csv", index_col=list(range(6)))
 
     RMF_field_sing = get_RMF_field_sing()
 
@@ -111,7 +110,3 @@ if __name__ == "__main__":
     save_is_rot_field()
 
     export_csv()
-
-    volume_plot()
-    progression_plot()
-    count_plot()

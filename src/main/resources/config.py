@@ -44,6 +44,6 @@ canc_magnet_moment = np.array([0, 0, -1.45/mu_0]) # Magnetization of magnet
 canc_cube_size = 0.01 # FEM smallest magnet size
 
 # Constants Actuation system
-offset = -0.01
-distance = 0.01
+offset = -0.07
+distance = 0.14
 density = 0.01
