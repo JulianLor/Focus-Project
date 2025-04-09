@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Coil_paramters import thickness_of_solenoid
+from src.main.python.Archive.Coil_paramters import thickness_of_solenoid
 
 # Function to generate points for the solenoids
 def generate_solenoid_points_flex(N_turns, L, R, shift_distance, points_per_turn, model_choice, angle, angle_adj, angle_opp):

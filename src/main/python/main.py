@@ -1,16 +1,23 @@
 import numpy as np
 import multiprocessing as mp
 import pandas as pd
+import time
+import os
+import imageio.v3 as iio
+import re
+
+from config import output_folder
 from src.main.python.ActuationSystem import ActuationSystem
 from src.main.python.Electromagnet import Electromagnet
 from src.main.python.PermanentMagnet import PermanentMagnet
-from src.main.python.Visualisation import plot_magnetic_field_3D, progression_plot, count_plot, volume_plot
-from src.main.python.Helper_functions import get_volume
-from src.main.resources.config import offset, distance, density
 
-"""
-# run the multiprocessing
-if __name__ == '__main__':
+from src.main.python.Helper_functions import get_volume
+from src.main.python.Visualisation import current_plot, plot_magnetic_field_3D
+from src.main.resources.config import offset, distance, density, hor_d, hor_d_rot_45, ver_d, time_steps
+
+from src.main.python.Archive.Vector_Field_Animation import setup_animation_frames, calc_base_B_field, calc_timed_B_field, create_video_from_frames
+
+def animation_generation():
     # setup of time to measure time usage for each process
     start_time = time.time()
 
@@ -42,71 +49,116 @@ if __name__ == '__main__':
     print(f"Time needed for Multiprocessing: {MP_time:.2f} seconds")
     print(f"Total Time elapsed: {Tot_time:.2f} seconds")
 
-    # output analysis of B-field over time
-    B_field_analysis(B_field, x ,y ,z, time_steps)
-
     # create video / animation from frames
     create_video_from_frames(time_steps)
 
-B_fields_canc = cancellation_field()
-plotting_canc_field(B_fields_canc)
-"""
+def System_setup():
+    # setup of actuation system parameters
+    pos_PermMagnets = np.array(
+        [[hor_d, 0, ver_d], [hor_d_rot_45, hor_d_rot_45, ver_d],
+         [0, hor_d, ver_d], [-hor_d_rot_45, hor_d_rot_45, ver_d],
+         [-hor_d, -0, ver_d], [-hor_d_rot_45, -hor_d_rot_45, ver_d],
+         [0, -hor_d, ver_d], [hor_d_rot_45, -hor_d_rot_45, ver_d]])
 
-# function to save RMF field
-def save_RMF_field(RMF_field_sing):
-    B_flux_direction_sim = System.get_B_flux_direction_sim()
-    total_steps = B_flux_direction_sim.shape[0]
-    for time_step in range(total_steps):
-        # Save the RMF field for the given time step
-        System.save_RMF_field(B_flux_direction_sim[time_step], RMF_field_sing)
-        # Print progress (note: prints from multiple processes may interleave)
-        print(f'Successfully saved {time_step + 1} of {total_steps} total steps')
+    pos_ElectroMagnet = ([0.14, 'y', np.pi / 4],
+                         [0.14, 'x', -np.pi / 4],
+                         [0.14, 'y', -np.pi / 4],
+                         [0.14, 'x', np.pi / 4])
 
-def get_RMF_field_sing():
+    # create system
+    return ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
+
+def rot_volume_gen():
+    System = System_setup()
+
+    System.Data = pd.read_csv("data/data_sets/2025-04-07_09-33-32.csv", index_col=list(range(6)))
+
     X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
     RMF_field_sing = np.zeros((4, X.shape[0], X.shape[1], X.shape[2], 3))
     for idx in range(4):
         RMF_field_sing[idx, ...] = System.get_electromagnet_field(idx, X, Y, Z)
         print(f'Successfully saved {idx + 1} of {4} total electromagnet fields')
 
-    return RMF_field_sing
+    B_flux_direction_sim = System.get_B_flux_direction_sim()
+    total_steps = B_flux_direction_sim.shape[0]
 
-# export dataframe as csv
-def export_csv():
-    System.export_to_csv() # export the dataframe csv
-    print('Successfully exported as csv')
+    for time_step in range(total_steps):
+        # Save the RMF field for the given time step
+        System.save_RMF_field(B_flux_direction_sim[time_step], RMF_field_sing)
+        # Print progress (note: prints from multiple processes may interleave)
+        print(f'Successfully saved {time_step + 1} of {total_steps} total steps')
 
-# function to save canc field
-def save_canc_field():
     # save the canc system into the dataframe
     System.save_canc_field()
     print('Successfully saved cancellation field')
 
-# function to save is_rot field
-def save_is_rot_field():
     # save if points are rotating or not into the dataframe
     System.save_is_rot_field(mode='Mag & RMF')
     print('Successfully saved is_rot_field field')
 
+    # export the dataframe csv
+    System.export_to_csv()
+    print('Successfully exported as csv')
+
+def current_analysis():
+    # Set up the actuation system
+    System = System_setup()
+    # Get the required current during the duration of simulation
+    I = System.get_current_sim()
+    # Plot the current as linear function during the simulation
+    current_plot(I)
+    # Output average usage of each coil
+    for i in range(I.shape[1]):
+        usage = I[:, i]
+        usage = np.average(np.sqrt((usage ** 2)))
+        print(f'Average usage for Electromagnet {i + 1}: {usage:.4f} A')
+
+    # get the operating volume
+    X, Y, Z = get_volume(offset, distance, density, offset, distance, density, offset, distance, density)
+    # Singular field for further analysis
+    RMF_field_sing = np.zeros((4, X.shape[0], X.shape[1], X.shape[2], 3))
+    for idx in range(4):
+        RMF_field_sing[idx, ...] = System.get_electromagnet_field(idx, X, Y, Z)
+        print(f'Successfully saved {idx + 1} of {4} total electromagnet fields')
+
+    Mag = np.zeros((I.shape[0]))
+    # Get flux over duration of the simulation
+    for step in range(I.shape[0]):
+        Bx, By, Bz = np.squeeze(System.get_RMF_field(I[step], X, Y, Z, RMF_field_sing))
+        Mag[step] = np.linalg.norm(np.array([Bx, By, Bz]))
+        # plot magnetic field at each time step
+        plot_magnetic_field_3D(X, Y, Z, Bx, By, Bz, f'{step+1}', output_folder='../python/data/output/frames/')
+    print(f'Maximal flux magnitude: {Mag.max():.4f}, Minimal flux magnitude: {Mag.min():.4f}, Average flux magnitude: {Mag.mean():.4f}')
+
+    # Define the folder paths
+    frames_folder = "../python/data/output/frames/"  # Folder where the frames are stored
+    output_folder = "../python/data/output/"  # Folder where the animation will be saved
+
+    # Make sure the output folder exists using os
+    os.makedirs(output_folder, exist_ok=True)
+
+    # List all files in the frames folder and filter to include only PNG files
+    frame_files = [os.path.join(frames_folder, f) for f in os.listdir(frames_folder) if f.endswith(".png")]
+    # Sort the list to ensure frames are in the correct order
+    frame_files = sorted(frame_files, key=lambda x: int(re.search(r'\d+', os.path.basename(x)).group()))
+
+    # Load frames into a list
+    frames = [iio.imread(frame_path) for frame_path in frame_files]
+
+    # Define the output video file name as MP4 and set the FPS (10 fps gives 60 seconds for 600 frames)
+    output_video_path = os.path.join(output_folder, "animation.mp4")
+    fps = 10
+
+    # Write the frames into an MP4 video using ImageIO v3
+    iio.imwrite(output_video_path, frames, fps=fps)
+
+    print(f"Animation saved to: {output_video_path}")
+
+def force_analysis():
+    # Set up the actuation system
+    System = System_setup()
+
 if __name__ == "__main__":
-    # setup of actuation system parameters
-    a = 0.16
-    b = (np.sqrt(2) / 2) * 0.16
-    c = 0.105
-    pos_PermMagnets = np.array(
-        [[a, 0, c], [b, b, c], [0, a, c], [-b, b, c], [-a, -0, c], [-b, -b, c], [0, -a, c], [b, -b, c]])
-    pos_ElectroMagnet = [0.14, 'y', np.pi / 4], [0.14, 'x', -np.pi / 4], [0.14, 'y', -np.pi / 4], [0.14, 'x', np.pi / 4]
-    # create system
-    System = ActuationSystem(4, 8, pos_ElectroMagnet, pos_PermMagnets)
+    current_analysis()
 
-    System.Data = pd.read_csv("data/data_sets/2025-04-07_09-33-32.csv", index_col=list(range(6)))
 
-    RMF_field_sing = get_RMF_field_sing()
-
-    save_RMF_field(RMF_field_sing)
-
-    save_canc_field()
-
-    save_is_rot_field()
-
-    export_csv()

@@ -6,10 +6,10 @@ from PIL import Image
 import time
 from multiprocessing import Pool, shared_memory
 from functools import partial
-from src.main.python.current_function_v02 import current_mag_flex
-from src.main.python.Coil_v02 import generate_solenoid_points_flex
-from src.main.python.Current_v02 import calculate_current_flex
-from Cancellation import cancellation_field
+from src.main.python.Archive.current_function_v02 import current_mag_flex
+from src.main.python.Archive.Coil_v02 import generate_solenoid_points_flex
+from src.main.python.Archive.Current_v02 import calculate_current_flex
+from src.main.python.Archive.Cancellation import cancellation_field
 from config import mu_0, N_turns, L, R, points_per_turn, shift_distance, I_max, Grid_density, Grid_size, time_steps, \
   output_folder, video_filename, span_of_animation, Hz, rot_freq, angle, angle_adj, angle_opp
 

@@ -94,7 +94,7 @@ def Lorentz_force(I: float, dl: ndarray, B: ndarray) -> ndarray:
 
 # defines the time steps for the whole simulation duration
 def get_time_steps(duration: float, fps: int) -> ndarray:
-    t = np.linspace(0, duration, fps, endpoint=False)
+    t = np.linspace(0, duration, duration * fps, endpoint=False)
     return t
 
 # return the inverse matrix (either directly or via SVD)

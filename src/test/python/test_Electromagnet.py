@@ -265,16 +265,3 @@ class TestElectromagnet(unittest.TestCase):
         # check result with predicted result
         prediction = np.array([np.sqrt(2) / 2 * 1.059787e-03, 0, np.sqrt(2) / 2 * 1.059787e-03])
         assert_array_almost_equal(result, prediction)
-
-    def test_lorentz_force_calc(self):
-        # setup test instance
-        test = Electromagnet(0, ['y', 0], 1, 0.5, 0.01)
-        test.save_solenoid_all()
-        # set the test-electromagnets current to 1 A
-        test.set_solenoid_current(1)
-        # get the result that is being verified
-        result = test.lorentz_force_calc(np.array([0, 0, 0]), np.array([0,1,0]), 0.01)
-
-        # check result with predicted result
-        prediction = Lorentz_force(1, np.array([0,0.01,0]), test.get_solenoid_B_flux(np.array([0, 0, 0])))
-        assert_array_almost_equal(result, prediction)

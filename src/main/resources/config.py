@@ -1,5 +1,19 @@
 import numpy as np
 
+### Constants Actuation System ###
+
+# setup cancellation
+hor_d = 0.16  # horizontal distance to center on axes
+hor_d_rot_45 = (np.sqrt(2) / 2) * 0.16  # horizontal distance to center between axes
+ver_d = 0.105  # vertical distance from focus point
+
+# setup grid
+offset = -0.0  # offset from 0
+distance = 0.0  # distance from offset
+density = 0.01  # density of grid
+
+### Old animation gen ###
+
 # Constants: Coil
 mu_0 = 4 * np.pi * 1e-7  # Permeability of free space (T·m/A)
 N_turns = 50  # Number of turns
@@ -42,8 +56,3 @@ canc_hor_distance = 0.285 # distance between magnets (the end to end distance)
 canc_magnet_dimensions = np.array([0.07, 0.03, 0.01]) # size and shape of the perm. magnet
 canc_magnet_moment = np.array([0, 0, -1.45/mu_0]) # Magnetization of magnet
 canc_cube_size = 0.01 # FEM smallest magnet size
-
-# Constants Actuation system
-offset = -0.07
-distance = 0.14
-density = 0.01

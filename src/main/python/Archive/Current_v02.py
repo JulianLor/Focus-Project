@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Coil_paramters import thickness_of_solenoid
+from src.main.python.Archive.Coil_paramters import thickness_of_solenoid
 
 def calculate_current_flex(N_turns, L, points_per_turn, model_choice, angle, angle_adj, angle_opp):
     total_points = N_turns * points_per_turn  # Calculate total points to plot

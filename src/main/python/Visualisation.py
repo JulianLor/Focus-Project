@@ -13,31 +13,38 @@ import seaborn as sns
 import pandas as pd
 
 # plot a 3D vector field using quiver
-def plot_magnetic_field_3D(X:ndarray, Y:ndarray, Z:ndarray, Bx:ndarray, By:ndarray, Bz:ndarray, Name:str):
-    save_dir = "../python/data/output/"
-    save_path = os.path.join(save_dir,f'Magnetic_Field_3D_{Name}.png')
+def plot_magnetic_field_3D(X:ndarray, Y:ndarray, Z:ndarray, Bx:ndarray, By:ndarray, Bz:ndarray, Name:str, output_folder: str = "../python/data/output/"):
+    save_dir = output_folder
+    save_path = os.path.join(save_dir,f'{Name}.png')
 
     # set up the normalised vectors
     Bx_norm = np.zeros(Bx.shape)
     By_norm = np.zeros(By.shape)
     Bz_norm = np.zeros(Bz.shape)
 
-    # normalise vectors for quiver
-    for x in range(X.shape[0]):
-        for y in range(X.shape[1]):
-            for z in range(X.shape[2]):
-                B_mag = np.linalg.norm(np.array([Bx[x,y,z], By[x,y,z], Bz[x,y,z]]))
-                Bx_norm[x,y,z] = Bx[x,y,z] / B_mag
-                By_norm[x,y,z] = By[x,y,z] / B_mag
-                Bz_norm[x,y,z] = Bz[x,y,z] / B_mag
+    if X.size > 1:
+        # normalise vectors for quiver
+        for x in range(X.shape[0]):
+            for y in range(X.shape[1]):
+                for z in range(X.shape[2]):
+                    B_mag = np.linalg.norm(np.array([Bx[x,y,z], By[x,y,z], Bz[x,y,z]]))
+                    Bx_norm[x,y,z] = Bx[x,y,z] / B_mag
+                    By_norm[x,y,z] = By[x,y,z] / B_mag
+                    Bz_norm[x,y,z] = Bz[x,y,z] / B_mag
+    else:
+        B_mag = np.linalg.norm(np.array([Bx, By, Bz]))
+        Bx_norm = (Bx / B_mag)
+        By_norm = (By / B_mag)
+        Bz_norm = (Bz / B_mag)
 
     # create 3D figure
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(1, 1, 1, projection='3d')
 
     # Plot vector field
-    ax.quiver(X, Y, Z, Bx_norm, By_norm, Bz_norm,
-        length=0.001,
+    ax.quiver(
+        X, Y, Z, Bx_norm, By_norm, Bz_norm,
+        length=0.01,
         normalize=True,
         cmap='viridis'
     )
@@ -82,52 +89,6 @@ def plot_solenoids_flex(*solenoids: ndarray):
 
     # Show the plot
     plt.show()
-
-# Plot and save each frame
-def plot_magnetic_field(x, y, z, Bx, By, Bz, Name):
-    B_magnitude = np.sqrt(Bx ** 2 + By ** 2 + Bz ** 2)
-    Bx_plot = np.zeros((Bx.shape))
-    By_plot = np.zeros((By.shape))
-    Bz_plot = np.zeros((Bz.shape))
-    if x.shape != (1, 1, 1):
-        for i in range(Bx.shape[0]):
-            for j in range(Bx.shape[1]):
-                for k in range(Bx.shape[2]):
-                    vector = np.array([Bx[i, j, k], By[i, j, k], Bz[i, j, k]])
-                    magnitude = np.linalg.norm(vector) * 1000
-                    direction = vector / magnitude
-                    magnitude_new = np.log(np.log(magnitude + 1) + 1)
-                    Bx_plot[i, j, k] = direction[0] * magnitude_new
-                    By_plot[i, j, k] = direction[1] * magnitude_new
-                    Bz_plot[i, j, k] = direction[2] * magnitude_new
-
-    mlab.options.offscreen = True  # Ensure consistent off-screen rendering
-    mlab.figure(size=(1920, 1080), bgcolor=(1, 1, 1))  # Create a white background figure
-    quiver = mlab.quiver3d(x, y, z, Bx_plot, By_plot, Bz_plot, scalars=B_magnitude, scale_factor=15, colormap='jet')
-    mlab.view(azimuth=45, elevation=45, distance=3)
-    mlab.colorbar(quiver, title="Field Magnitude", orientation='vertical')
-    mlab.title(f"Magnetic Field of {Name}", size=0.2)
-
-    # Find the vector magnitude at the origin
-    origin_index = np.argmin(np.abs(x) + np.abs(y) + np.abs(z))  # Closest index to origin
-    origin_magnitude = B_magnitude.flatten()[origin_index]  # Vector magnitude at origin
-
-    # Get the x, y, z coordinates of the origin
-    origin_coords = (x.flatten()[origin_index], y.flatten()[origin_index], z.flatten()[origin_index])
-
-    # Add custom text along with the vector magnitude at the origin
-    text = f"Magnitude in Milliteslas: {round(origin_magnitude * 1000, 3)}"
-    mlab.text3d(origin_coords[0], origin_coords[1], origin_coords[2], text, scale=0.03, color=(0, 0, 0))
-
-    # Save the frame as an image
-    save_dir = "../python/data/output/"
-    save_path = os.path.join(save_dir, f"Magnetic_Field_{Name}.png")
-    mlab.savefig(save_path, size=(1880, 1024))
-    mlab.close()
-
-    # Verify the saved image size
-    image = Image.open(save_path)
-    print(f"Frame saved with dimensions: {image.size}")
 
 def count_plot():
     # Define paths
@@ -365,6 +326,29 @@ def volume_plotting():
     render_window.Render()
     interactor.Start()
 
-count_plot()
-progression_plot()
-volume_plot()
+def current_plot(I: ndarray):
+    save_dir = "../python/data/output/"
+    save_path = os.path.join(save_dir, "Current_Plot.png")
+
+    plt.figure(figsize=(20, 15))
+
+    t = np.linspace(0, (I.shape[0] - 1) / 10, I.shape[0])
+
+    colors = ['b', 'g', 'r', 'y']
+
+    for idx in range(I.shape[1]):
+        plt.plot(t, I[:, idx], label=f'Coil {idx+1}', linewidth=2, color=colors[idx])
+
+    # Adding labels, title, and a legend
+    plt.xlabel('Time (s)', fontsize=14)
+    plt.ylabel('Current (A)', fontsize=14)
+    plt.title('Current Through Coils Over Time', fontsize=16)
+    plt.legend()
+    plt.tight_layout()
+
+    # Save plot
+    plt.savefig(save_path)
+    print(f"Plot saved to {save_path}")
+
+
+
