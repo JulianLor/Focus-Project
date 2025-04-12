@@ -72,12 +72,12 @@ def create_r_vector(A: ndarray, B: ndarray) -> ndarray:
 
 # calculates the torque by M-vector and B-flux
 def magnetic_torque(magnetisation: ndarray, B: ndarray) -> ndarray:
-    torque = np.dot(magnetisation, B)
+    torque = np.cross(magnetisation, B)
     return torque
 
 # calculates the force by M-vector and B-flux gradient
 def magnetic_force(magnetisation: ndarray, B_grad: ndarray) -> ndarray:
-    force = np.dot(magnetisation, B_grad)
+    force = B_grad.dot(magnetisation)
     return force
 
 # uses Biot-Savart Law to calculate a currents B-flux at a point
