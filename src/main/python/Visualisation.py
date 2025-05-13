@@ -350,5 +350,79 @@ def current_plot(I: ndarray):
     plt.savefig(save_path)
     print(f"Plot saved to {save_path}")
 
+def canc_vis_plot():
+    # Define paths
+    data_path = "data/data_sets/2025-04-07_09-33-32.csv"
+    save_dir  = "../python/data/output/"
+    save_path = os.path.join(save_dir, "canc_vis_plot.png")
+    os.makedirs(save_dir, exist_ok=True)
 
+    # Load data
+    data = pd.read_csv(data_path)
+
+    # Deduplicate and scale
+    df = data.drop_duplicates(subset=['x','y','z'], keep='first').copy()
+    df[['x','y','z']] *= 100
+
+    # Compute mag min/max for normalization
+    mag_min = df['B.canc.mag'].min()
+    mag_max = df['B.canc.mag'].max()
+
+    # Grid dims
+    x_min, x_max = int(df.x.min()), int(df.x.max())
+    y_min, y_max = int(df.y.min()), int(df.y.max())
+    z_min, z_max = int(df.z.min()), int(df.z.max())
+
+    X = x_max - x_min + 1
+    Y = y_max - y_min + 1
+    Z = z_max - z_min + 1
+
+    grid   = np.zeros((X,Y,Z), dtype=bool)
+    colors = np.empty((X,Y,Z), dtype=object)
+
+    # Fill voxels: color=(R,G,B,alpha)
+    for _, row in df.iterrows():
+        xi = int(row.x - x_min)
+        yi = int(row.y - y_min)
+        zi = int(row.z - z_min)
+
+        mag = row['B.canc.mag']
+        if mag > 0:
+            # normalize mag to 0–1
+            norm = (mag - mag_min) / (mag_max - mag_min) if mag_max>mag_min else 0.0
+            beta = 10
+            alpha = np.exp(-beta * norm)  # larger mag → smaller alpha
+            # pick a base color, e.g. red
+            colors[xi, yi, zi] = (1, 0.0, 0.0, alpha)
+            grid[xi, yi, zi] = True
+
+    # Prepare voxel edges
+    x_vals = np.linspace(x_min, x_max+1, X+1)
+    y_vals = np.linspace(y_min, y_max+1, Y+1)
+    z_vals = np.linspace(z_min, z_max+1, Z+1)
+    x, y, z = np.meshgrid(x_vals, y_vals, z_vals, indexing="ij")
+
+    # Plot
+    fig = plt.figure(figsize=(8,8))
+    ax  = fig.add_subplot(projection='3d')
+
+    ax.voxels(
+        x, y, z, grid,
+        facecolors=colors,
+        edgecolors='k'
+    )
+
+    ax.set_title('Cancellation Magnitude Visualization')
+    ax.set_xlabel('X (cm)')
+    ax.set_ylabel('Y (cm)')
+    ax.set_zlabel('Z (cm)')
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    ax.set_zlim(z_min, z_max)
+
+    plt.savefig(save_path, dpi=300)
+    plt.close(fig)
+    print(f"Saved plot to {save_path}")
+
+canc_vis_plot()
 
