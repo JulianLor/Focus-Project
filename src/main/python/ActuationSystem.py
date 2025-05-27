@@ -13,10 +13,10 @@ from src.main.python.PermanentMagnet import PermanentMagnet
 class ActuationSystem:
     # class level constants
     FREQ =                 1                # Frequency of rotation
-    PERIOD =               60               # Period of rotational axis rotation
+    PERIOD =               30               # Period of rotational axis rotation
     LIM_N_ElectroMagnet =  4                # Limit of Electromagnets
     LIM_N_PermMagnet =     8                # Limit of Permanent Magnets
-    DURATION =             2                # Duration of the simulation
+    DURATION =             30               # Duration of the simulation
     ACCURACY =             0.0001           # Accuracy of the B-flux generation
     MU_0 =                 4*np.pi*1e-7     # Permeability of free space (T·m/A)
     N52_MOMENT =           1.45/MU_0        # Magnetisation of N52 Magnet
@@ -314,7 +314,7 @@ class ActuationSystem:
         # get the current axis around which the axis of rotation rotates
         axis = self.get_state_axis(t_state)
         # defining the angle of the transformation matrix to the main rotation vector
-        theta = (3 * np.pi / 2) * (t_period / (self.PERIOD / 3))  # angle of rotation axis rotation
+        theta = (np.pi / 2) * (t_period / (self.PERIOD / 3))  # angle of rotation axis rotation
         return axis, theta
 
     # get the current axis of rotation for the rotation of the rotation axis

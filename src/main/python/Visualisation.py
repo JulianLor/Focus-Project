@@ -44,7 +44,7 @@ def plot_magnetic_field_3D(X:ndarray, Y:ndarray, Z:ndarray, Bx:ndarray, By:ndarr
     # Plot vector field
     ax.quiver(
         X, Y, Z, Bx_norm, By_norm, Bz_norm,
-        length=0.01,
+        length=0.03,
         normalize=True,
         cmap='viridis'
     )
@@ -139,6 +139,9 @@ def progression_plot():
 
     # filter the data for only z axis points
     data_filtered = data.loc[(data['x'] == 0) & (data['y'] == 0)]
+    data_filtered['B.canc.mag'] = data_filtered['B.canc.mag'] * 1000
+    data_filtered['B.RMF.mag'] = data_filtered['B.RMF.mag'] * 1000
+    data_filtered['z'] = data_filtered['z'] * 100
 
     # Plot count of rotating points
     plt.figure(figsize=(8, 8))
@@ -160,11 +163,12 @@ def progression_plot():
     )
 
     # Set title and labels
-    ax.set(
-        title='Magnitude of Cancellation & RMF Field',
-        xlabel='Z',
-        ylabel='Tesla',
-    )
+    plt.title('Magnitude of Cancellation & RMF Field', fontsize=20)
+    plt.xlabel('Z (in cm)', fontsize=18)
+    plt.ylabel('mT', fontsize=18)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.legend(fontsize=18)
 
     # Save plot
     plt.savefig(save_path)
@@ -224,13 +228,13 @@ def volume_plot():
         edgecolors='k',
         alpha=0.5
     )
-
-    ax.set(
-        title='Operating Volume',
-        xlabel='X (in cm)',
-        ylabel='Y (in cm)',
-        zlabel='Z (in cm)',
-    )
+    ax.set_title('Operating Volume', fontsize=20)
+    ax.set_xlabel('X (in cm)', fontsize=16)
+    ax.set_ylabel('Y (in cm)', fontsize=16)
+    ax.set_zlabel(zlabel='Z (in cm)', fontsize=16)
+    ax.tick_params(axis='x', labelsize=14)
+    ax.tick_params(axis='y', labelsize=14)
+    ax.tick_params(axis='z', labelsize=14)
 
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
@@ -424,5 +428,4 @@ def canc_vis_plot():
     plt.close(fig)
     print(f"Saved plot to {save_path}")
 
-canc_vis_plot()
-
+volume_plot()

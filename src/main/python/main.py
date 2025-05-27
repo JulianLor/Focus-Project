@@ -113,6 +113,7 @@ def volume_analysis():
 ### Analysis of total power usage, visual output ###
 # -------------------------------------------
 def current_analysis():
+    """
     # Set up the actuation system
     System = System_setup()
     # Get the required current during the duration of simulation
@@ -148,7 +149,7 @@ def current_analysis():
         # plot magnetic field at each time step
         plot_magnetic_field_3D(X, Y, Z, Bx, By, Bz, f'{step+1}', output_folder='../python/data/output/frames/')
     print(f'Maximal flux magnitude: {Mag.max():.4f}, Minimal flux magnitude: {Mag.min():.4f}, Average flux magnitude: {Mag.mean():.4f}')
-
+    """
     # Define the folder paths
     frames_folder = "../python/data/output/frames/"  # Folder where the frames are stored
     output_folder = "../python/data/output/"  # Folder where the animation will be saved
@@ -199,4 +200,4 @@ def force_analysis():
     print(f'Force on (axial) Permanent Magnet {force}, PermMagnets contribute: {force_PM}, Electromagnets contribute: {force_EM}')
 
 if __name__ == "__main__":
-    force_analysis()
+    current_analysis()
